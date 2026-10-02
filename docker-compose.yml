@@ -1,0 +1,10 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: agentic-commerce:latest
+    container_name: agentic-commerce
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
