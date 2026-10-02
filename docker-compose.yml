@@ -7,4 +7,14 @@ services:
     container_name: agentic-commerce
     ports:
       - "3000:3000"
+    environment:
+      # Session-signing secret. Generate one with: openssl rand -base64 32
+      - AUTH_SECRET=${AUTH_SECRET:-change-me-openssl-rand-base64-32}
+      # SQLite database location inside the container (persisted below)
+      - DATA_DIR=/app/data
+    volumes:
+      - scout-data:/app/data
     restart: unless-stopped
+
+volumes:
+  scout-data:
