@@ -40,7 +40,7 @@ B. User Payment Request
 
 **[changed]** Rank those three with default weights shown in the UI: relevance 0.35, cash 0.25, rating 0.15, purchase count 0.10, purchase history 0.15. A checkbox or other explicit form selection overrides a weight inferred from the prompt. If they conflict, ask. A previously purchased sku_id ranks higher next time. Quote currency is HKD, converted with a fixed mock FX table. Store the rate timestamp on the quote. Fees are part of cash.
 
-**[changed]** Rewards affect ranking only when the user includes them. `cash_total` is the gate. `effective_cost` is the score, and only if rewards are included. A gift of 100 contributes 50 to `effective_cost` (rate 0.5), or 0 when rewards are excluded. `effective_cost` never changes `cash_total` or `spent_7d`.
+**[changed]** Rewards affect ranking only when the user includes them. `cash_total` is the gate. `effective_cost` is the score, and only if rewards are included. A gift of 100 counts as a 50 credit against `effective_cost` (rate 0.5), or 0 when rewards are excluded. `effective_cost = cash_total − gift × 0.5` when rewards are on, and `effective_cost = cash_total` when they are off. `effective_cost` never changes `cash_total` or `spent_7d`. 
 suggested logic as follows
 1. Line total = shelf × qty. `per_item` uses this, before coupon.
 2. Coupon reduces cash.
@@ -48,7 +48,7 @@ suggested logic as follows
 4. Cash = post-coupon merchandise + shipping. This is what `per_order` and `rolling_7d` see.
 5. Reward is computed on post-coupon merchandise only, shipping excluded. It is posted to cashback only after `book()` commits. It never reduces cash or `spent_7d`.
 
-**[changed]** Code computes these numbers. The model must not. Worked example: shelf 200 × qty 2 = line 400, so `per_item` sees 400. Coupon 80 leaves merchandise 320. Shipping 30 makes `cash_total` 350. Reward is computed on 320. A gift of 100 adds 50 to `effective_cost` only. `book()` writes 350 into `spent_7d` only after payment succeeds. A refund does not return it. If 340 remains on the rolling budget, the order stops.
+**[changed]** Code computes these numbers. The model must not. Worked example: shelf 200 × qty 2 = line 400, so `per_item` sees 400. Coupon 80 leaves merchandise 320. Shipping 30 makes `cash_total` 350. Reward is computed on 320. A gift of 100 lowers `effective_cost` by 50 only, so that score becomes 300 while `cash_total` stays 350. `book()` writes 350 into `spent_7d` only after payment succeeds. A refund does not return it. If 340 remains on the rolling budget, the order stops.
 
 **[changed]** Manual mode: clicking an offer selects it. The user confirms the quote before payment. Auto mode pays only the unique highest-ranked offer that passes every mandate. A tie asks the user. If the cash total, items, shipping, currency, tender, or reward terms change after confirm, that confirm is void. Declining the new quote rolls back to search and releases the coupon. Confirming cannot override a spending limit.
 
@@ -122,4 +122,11 @@ What are the default timeouts?
 **[changed]** Search defaults to 15 seconds, capped by the mandate’s max search time. Clarification is 120 seconds. Quote expiry and mandate expiry are separate clocks, both shown on the quote. Mandate expiry stops further purchasing. A timeout before any charge terminates. A timeout after a pay attempt retries the same idempotency key.
 Do refunds restore the rolling seven-day budget?
 For the first release, use a conservative rule: count the original cash payment of successful orders within the preceding continuous 168 hours. Refunds do not automatically restore the budget. Explain this in the interface; a later release may explicitly adopt net-spending accounting.
+
+Approved for this release
+**[changed]** A split request starts with blank amounts. The user assigns each goal a share of the request budget. Unassigned money stays reserved. A goal cannot spend another goal’s share.
+**[changed]** The mock vault id and address id are created with the account. The pay call sends those ids. The user does not type them at checkout.
+**[changed]** Negotiation is one catalogue request. The seller accepts or rejects. A rejection leaves the coupon unspent.
+**[changed]** An unset mandate means manual confirm, one merchant per order, rewards included, and no expiry. An empty merchant allow list means every merchant except the deny list.
+**[changed]** The only mock tender is `card`. If the tender list excludes `card`, payment terminates. This release fills the mandate form with a deterministic parser into the same JSON. The user still confirms the form. A hosted LLM is a later swap behind that JSON, and the harness does not call one.
 
