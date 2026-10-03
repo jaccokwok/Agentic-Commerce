@@ -1,0 +1,343 @@
+{
+  "version": 1,
+  "skills": {
+    "a2a-error-handling": {
+      "source": "orcaqubits/agentic-commerce-skills-plugins",
+      "sourceType": "github",
+      "skillPath": "a2a-multi-agent/skills/a2a-error-handling/SKILL.md",
+      "computedHash": "31e9841f7ea0fb8b8be2dd42020c936644e854147fcabc1c5f5f0883fa52b30a"
+    },
+    "a2a-multi-turn": {
+      "source": "orcaqubits/agentic-commerce-skills-plugins",
+      "sourceType": "github",
+      "skillPath": "a2a-multi-agent/skills/a2a-multi-turn/SKILL.md",
+      "computedHash": "d57b5d6ed1eb91f85099807dbe7284b75df2b1be108a022c21a740a597a974f9"
+    },
+    "a2a-task-lifecycle": {
+      "source": "orcaqubits/agentic-commerce-skills-plugins",
+      "sourceType": "github",
+      "skillPath": "a2a-multi-agent/skills/a2a-task-lifecycle/SKILL.md",
+      "computedHash": "19d8ebd2513097a5e8244bc82bc029b11b8bd465a6e660ec5d664930b5a11691"
+    },
+    "acp-capability-negotiation": {
+      "source": "orcaqubits/agentic-commerce-skills-plugins",
+      "sourceType": "github",
+      "skillPath": "acp-agentic-commerce/skills/acp-capability-negotiation/SKILL.md",
+      "computedHash": "3b13e239249ceffbc02529f8bde8d3b2f064c77218d65585dd8db60c063ee161"
+    },
+    "acp-conformance": {
+      "source": "orcaqubits/agentic-commerce-skills-plugins",
+      "sourceType": "github",
+      "skillPath": "acp-agentic-commerce/skills/acp-conformance/SKILL.md",
+      "computedHash": "66b36c979029c82a664fcbf76b628697525b61476ddee78afda118c14a60a29e"
+    },
+    "acp-delegated-payment": {
+      "source": "orcaqubits/agentic-commerce-skills-plugins",
+      "sourceType": "github",
+      "skillPath": "acp-agentic-commerce/skills/acp-delegated-payment/SKILL.md",
+      "computedHash": "fc33e4e08c631623dbfea3e670f4413b6603c54ef9f3a046b5cef4ac1fabb695"
+    },
+    "acp-dev-patterns": {
+      "source": "orcaqubits/agentic-commerce-skills-plugins",
+      "sourceType": "github",
+      "skillPath": "acp-agentic-commerce/skills/acp-dev-patterns/SKILL.md",
+      "computedHash": "a5f80b6079193fc36abeadc26e4d448b70392c28600057fc511ce1f56bef5885"
+    },
+    "acp-discount-extension": {
+      "source": "orcaqubits/agentic-commerce-skills-plugins",
+      "sourceType": "github",
+      "skillPath": "acp-agentic-commerce/skills/acp-discount-extension/SKILL.md",
+      "computedHash": "bbbec008c05d9301d627a915972875910b7e135cbace6acac929f7eb71269ee3"
+    },
+    "acp-intent-traces": {
+      "source": "orcaqubits/agentic-commerce-skills-plugins",
+      "sourceType": "github",
+      "skillPath": "acp-agentic-commerce/skills/acp-intent-traces/SKILL.md",
+      "computedHash": "4520f04e091c4712dce965a4f7be3c076b32790a150824b1dc04192b68db371c"
+    },
+    "acp-payment-handlers": {
+      "source": "orcaqubits/agentic-commerce-skills-plugins",
+      "sourceType": "github",
+      "skillPath": "acp-agentic-commerce/skills/acp-payment-handlers/SKILL.md",
+      "computedHash": "588b1df31cb9d51328305b20723233daf35e7f9c56414c5eb3517e35ce3a3124"
+    },
+    "acp-product-feed": {
+      "source": "orcaqubits/agentic-commerce-skills-plugins",
+      "sourceType": "github",
+      "skillPath": "acp-agentic-commerce/skills/acp-product-feed/SKILL.md",
+      "computedHash": "f212954fde2f7f10126c3a71b19dac3800fff460bbc56680df178aa635902f9b"
+    },
+    "ap2-checkout-mandate": {
+      "source": "orcaqubits/agentic-commerce-skills-plugins",
+      "sourceType": "github",
+      "skillPath": "ap2-agentic-payments/skills/ap2-checkout-mandate/SKILL.md",
+      "computedHash": "cf50988208a2f77832be7bd2883a95a517f8dc112b63465a528ef53c20e86b36"
+    },
+    "ap2-human-not-present-flow": {
+      "source": "orcaqubits/agentic-commerce-skills-plugins",
+      "sourceType": "github",
+      "skillPath": "ap2-agentic-payments/skills/ap2-human-not-present-flow/SKILL.md",
+      "computedHash": "665ac59c98def4950f9a409f506f2ccb928262246b57667a7a2a85c31369d2c6"
+    },
+    "ap2-human-present-flow": {
+      "source": "orcaqubits/agentic-commerce-skills-plugins",
+      "sourceType": "github",
+      "skillPath": "ap2-agentic-payments/skills/ap2-human-present-flow/SKILL.md",
+      "computedHash": "ed5ae4277a67c21726bcec442e029fbc5cc2cf7534a2542b2657b2a2fe239191"
+    },
+    "ap2-intent-mandate": {
+      "source": "orcaqubits/agentic-commerce-skills-plugins",
+      "sourceType": "github",
+      "skillPath": "ap2-agentic-payments/skills/ap2-intent-mandate/SKILL.md",
+      "computedHash": "1f1534453fc9fff793f8dcdf83bde75fa5772747967a1646e06dad9f4f2a3815"
+    },
+    "ap2-payment-mandate": {
+      "source": "orcaqubits/agentic-commerce-skills-plugins",
+      "sourceType": "github",
+      "skillPath": "ap2-agentic-payments/skills/ap2-payment-mandate/SKILL.md",
+      "computedHash": "30c1d2462fda388c23275a29ed01497c76193552697e5785f5015c8588d80124"
+    },
+    "ap2-shopping-agent": {
+      "source": "orcaqubits/agentic-commerce-skills-plugins",
+      "sourceType": "github",
+      "skillPath": "ap2-agentic-payments/skills/ap2-shopping-agent/SKILL.md",
+      "computedHash": "df65d022a39c499fa4dd29776e74c160d283a2920e86f6be5ba62985be9d24de"
+    },
+    "api-and-interface-design": {
+      "source": "addyosmani/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/api-and-interface-design/SKILL.md",
+      "computedHash": "26f5a9e7abfd332d7a2e5887cf19bddd3393f47514c379b36bf227c1f15cdec4"
+    },
+    "code-review-and-quality": {
+      "source": "addyosmani/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/code-review-and-quality/SKILL.md",
+      "computedHash": "0667c7af98996c0bec4fb0eb444680bdbf1da1d6a3cfdf5dbe8cbd350d9d2752"
+    },
+    "code-simplification": {
+      "source": "addyosmani/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/code-simplification/SKILL.md",
+      "computedHash": "7973e746e8e2ea5004d520da970c15a106824b8d6be1bcff48908aec021f3677"
+    },
+    "constraint-driven-development": {
+      "source": "addyosmani/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/constraint-driven-development/SKILL.md",
+      "computedHash": "7cdf20ff7d27eb3103b206033a1d87af7afe4a648162f09cd382fc8e3cb9a42b"
+    },
+    "debugging-and-error-recovery": {
+      "source": "addyosmani/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/debugging-and-error-recovery/SKILL.md",
+      "computedHash": "6f437bc609eb8d0dc7f4768c17c9aeb85c9c7632bc36703af9f1367ffb47237a"
+    },
+    "frontend-ui-engineering": {
+      "source": "addyosmani/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/frontend-ui-engineering/SKILL.md",
+      "computedHash": "caada020b47fb51c68ba91f9bf390745e18f9d6c17e4c251b046ba74e43343d7"
+    },
+    "incremental-implementation": {
+      "source": "addyosmani/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/incremental-implementation/SKILL.md",
+      "computedHash": "bb1198705f46dc9ff75fb5685a7a872de5924d743b44eb202135f5046750ab7e"
+    },
+    "mpp-spt-lifecycle": {
+      "source": "orcaqubits/agentic-commerce-skills-plugins",
+      "sourceType": "github",
+      "skillPath": "stripe-mpp/skills/mpp-spt-lifecycle/SKILL.md",
+      "computedHash": "0f19e881d5337732a63f3a21b28a377a0880a5983edbe46e72692002586326bb"
+    },
+    "mpp-stripe-method": {
+      "source": "orcaqubits/agentic-commerce-skills-plugins",
+      "sourceType": "github",
+      "skillPath": "stripe-mpp/skills/mpp-stripe-method/SKILL.md",
+      "computedHash": "f9545d7e6b3782e4a2ebed65fbeb0c205145323f42fddc266e49a239b6d41902"
+    },
+    "next-best-practices": {
+      "source": "vercel-labs/openreview",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/next-best-practices/SKILL.md",
+      "computedHash": "db85045827ebeb83ac8dbc992b69188755eeb74dcf01cbf5e694d58aa494a106"
+    },
+    "next-cache-components": {
+      "source": "vercel-labs/openreview",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/next-cache-components/SKILL.md",
+      "computedHash": "f835d8226c28abf012cc013928e2627c8a7a046de61127ef229be1711bd1f255"
+    },
+    "nextjs-patterns": {
+      "source": "orcaqubits/agentic-commerce-skills-plugins",
+      "sourceType": "github",
+      "skillPath": "bigcommerce-commerce/skills/nextjs-patterns/SKILL.md",
+      "computedHash": "cdc8db9f20b5e28250de4f0a300f9dfa03d59fe616843722cda5d7fbf479bf4a"
+    },
+    "observability-and-instrumentation": {
+      "source": "addyosmani/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/observability-and-instrumentation/SKILL.md",
+      "computedHash": "e5eba32f952a29d20c0383728a9505d0ca2a90f1d8d075603e53804b441b2dd2"
+    },
+    "planning-and-task-breakdown": {
+      "source": "addyosmani/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/planning-and-task-breakdown/SKILL.md",
+      "computedHash": "0dc14a1402cdabd376f2d81d2225fcb4a18ee63d58b945ff83affeb024285b8f"
+    },
+    "ponytail": {
+      "source": "DietrichGebert/ponytail",
+      "ref": "main",
+      "sourceType": "github",
+      "skillPath": "skills/ponytail/SKILL.md",
+      "computedHash": "210fa0831f649ce9f8a305f7b7c8cf2a0dd09ac4dd53067109941b96e7811d4e"
+    },
+    "ponytail-audit": {
+      "source": "DietrichGebert/ponytail",
+      "ref": "main",
+      "sourceType": "github",
+      "skillPath": "skills/ponytail-audit/SKILL.md",
+      "computedHash": "8b8d72e6ff70b65b6c9518d470fcf29dc696eea93d28f3efa10fdcc60cbd696d"
+    },
+    "ponytail-debt": {
+      "source": "DietrichGebert/ponytail",
+      "ref": "main",
+      "sourceType": "github",
+      "skillPath": "skills/ponytail-debt/SKILL.md",
+      "computedHash": "0099b82174e3a4261828b4ec04d2c068b1b294fdab14f76701c2acd1f7c99539"
+    },
+    "ponytail-gain": {
+      "source": "DietrichGebert/ponytail",
+      "ref": "main",
+      "sourceType": "github",
+      "skillPath": "skills/ponytail-gain/SKILL.md",
+      "computedHash": "c45ecba7906960eea904218b623abf097ebff84ecbacca6d68da1d0687435f75"
+    },
+    "ponytail-help": {
+      "source": "DietrichGebert/ponytail",
+      "ref": "main",
+      "sourceType": "github",
+      "skillPath": "skills/ponytail-help/SKILL.md",
+      "computedHash": "10e8382b1033c9a0fec0073de6d3de3846b4f5dca7d78b6df2d476a1f4cd43c6"
+    },
+    "ponytail-review": {
+      "source": "DietrichGebert/ponytail",
+      "ref": "main",
+      "sourceType": "github",
+      "skillPath": "skills/ponytail-review/SKILL.md",
+      "computedHash": "4646594fcd75455533f7ff1425f4f1c5ba0fa65f88241bf262b1c4fc275f049a"
+    },
+    "security-and-hardening": {
+      "source": "addyosmani/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/security-and-hardening/SKILL.md",
+      "computedHash": "1e0cd727cccd3c8c0834ce7722a8a2851e2e849f1352ee972f39311437b021d3"
+    },
+    "security-best-practices": {
+      "source": "openai/skills",
+      "sourceType": "github",
+      "skillPath": "skills/.curated/security-best-practices/SKILL.md",
+      "computedHash": "c27616fb4e27999605b90b261dc729784420c8d77bd1a98748384ffaa5b35704"
+    },
+    "source-driven-development": {
+      "source": "addyosmani/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/source-driven-development/SKILL.md",
+      "computedHash": "d1923bb807f7db157a794f07a590ca639b3789b2f1a5eabef993f8df24791e2a"
+    },
+    "spec-driven-development": {
+      "source": "addyosmani/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/spec-driven-development/SKILL.md",
+      "computedHash": "d4dc15caa8d97749267da68676aeadff3fb5b8d9a4462664937137ac09610e4f"
+    },
+    "stripe-best-practices": {
+      "source": "docs.stripe.com",
+      "sourceUrl": "https://docs.stripe.com",
+      "sourceType": "well-known",
+      "computedHash": "e995c60c0fdc2903b85d0f0bd5580c7b9cefe90592aa60a7364f33c212971271",
+      "wellKnownDigest": "sha256:e3e89d566ae6e8fa0b016518357eccd05a046dbe25a0d28664389d62bdfc578b"
+    },
+    "stripe-docs": {
+      "source": "docs.stripe.com",
+      "sourceUrl": "https://docs.stripe.com",
+      "sourceType": "well-known",
+      "computedHash": "ee4a51d34f11386fe6c9f991d5b2d32da69c851124a78a01403412bcf87e73d7",
+      "wellKnownDigest": "sha256:354fb04e9c979223bfecabc994fff41c8da5b5ea155684f1b4ade3a6fed07bac"
+    },
+    "test-driven-development": {
+      "source": "addyosmani/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/test-driven-development/SKILL.md",
+      "computedHash": "efb654aa37612ab1e7470e547b06a322c5e1837b6879525e32aa432d1281692b"
+    },
+    "ts-modern": {
+      "source": "orcaqubits/agentic-commerce-skills-plugins",
+      "sourceType": "github",
+      "skillPath": "medusa-commerce/skills/ts-modern/SKILL.md",
+      "computedHash": "063918096a301fcd624c114db7fcf2edc5cb14a7eaa05ce3914550a411d2536d"
+    },
+    "ucp": {
+      "source": "vercel-labs/agentic-commerce-skills",
+      "sourceType": "github",
+      "skillPath": "ucp/SKILL.md",
+      "computedHash": "05987423e41eca47ea1f125b2fd9470539fd3f726a7eb50c282d38bf2846ff1c"
+    },
+    "ucp-ap2-mandates": {
+      "source": "orcaqubits/agentic-commerce-skills-plugins",
+      "sourceType": "github",
+      "skillPath": "skills/ucp-ap2-mandates/SKILL.md",
+      "computedHash": "8c1479f77a59491e87c0c055c7fe2a207e0dabfc913408e5685249256ca03538"
+    },
+    "ucp-catalog": {
+      "source": "orcaqubits/agentic-commerce-skills-plugins",
+      "sourceType": "github",
+      "skillPath": "skills/ucp-catalog/SKILL.md",
+      "computedHash": "cfcc2641686e9f4f508c3e69afe8bcd4a31dfd3db4f75e4e5cae1cc8fc9d815d"
+    },
+    "ucp-discount": {
+      "source": "orcaqubits/agentic-commerce-skills-plugins",
+      "sourceType": "github",
+      "skillPath": "skills/ucp-discount/SKILL.md",
+      "computedHash": "1dc3d388f49dc7d6d8bd849a9f8605ba8afdb909d7bddc9956ca8d7c060609f6"
+    },
+    "ucp-loyalty": {
+      "source": "orcaqubits/agentic-commerce-skills-plugins",
+      "sourceType": "github",
+      "skillPath": "skills/ucp-loyalty/SKILL.md",
+      "computedHash": "f1214b79b6a649da76fa985cf1338bbd0f53bc8869b072c18b148ca690c4d469"
+    },
+    "using-agent-skills": {
+      "source": "addyosmani/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/using-agent-skills/SKILL.md",
+      "computedHash": "4221dc84c943696829025a42c7961b257afdb8f1ba20af42463434a0d9c03812"
+    },
+    "vercel-composition-patterns": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/composition-patterns/SKILL.md",
+      "computedHash": "f98931159fa9c7fed043bcd18a891a46dcf89ababa38df13a4c5b7b30dc0ce07"
+    },
+    "vercel-react-best-practices": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/react-best-practices/SKILL.md",
+      "computedHash": "3219a1944e404ffc14d1d9d6aef6dd2e3855b81387ee0a044ccbfe14d34c2357"
+    },
+    "vitest": {
+      "source": "antfu/skills",
+      "sourceType": "github",
+      "skillPath": "skills/vitest/SKILL.md",
+      "computedHash": "21af2b13d47d31f3094b61c0f41abc8d6a7eed0df3c9a4029ea671f6978b7209"
+    },
+    "web-design-guidelines": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/web-design-guidelines/SKILL.md",
+      "computedHash": "a6a44d5498f7e8f68289902f3dedfc6f38ae0cee1e96527c80724cf27f727c2a"
+    }
+  }
+}
