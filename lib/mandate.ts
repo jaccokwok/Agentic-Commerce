@@ -38,29 +38,35 @@ export function allows(m: Mandate, merchant: string, category: string): boolean 
 export function checkMandate(m: Mandate, now: number, request?: { budgetHint?: number | null; categoryId?: string; merchantId?: string }): Decision {
   const errors = validateMandate(m);
   if (errors.length || m.revoked || (m.expiresAt !== null && now >= m.expiresAt)) return { status: "terminate", reason: errors.join("; ") || "Mandate revoked or expired" };
-  if (request && ((request.budgetHint != null && request.budgetHint > m.perOrder) ||
-    (request.categoryId && (m.categoryDeny.includes(request.categoryId) || (m.categoryAllow.length && !m.categoryAllow.includes(request.categoryId)))) ||
-    (request.merchantId && !allows(m, request.merchantId, request.categoryId ?? "snacks")))) {
-    return { status: "clarify", reason: "Request conflicts with confirmed mandate. Edit and confirm the form or request." };
-  }
+  const conflicts: string[] = [];
+  if (request?.budgetHint != null && request.budgetHint > m.perOrder) conflicts.push(`The request budget of ${request.budgetHint} is above the per-order limit of ${m.perOrder}.`);
+  if (request?.categoryId && m.categoryDeny.includes(request.categoryId)) conflicts.push(`Category ${request.categoryId} is on the deny list.`);
+  else if (request?.categoryId && m.categoryAllow.length && !m.categoryAllow.includes(request.categoryId)) conflicts.push(`Category ${request.categoryId} is not on the allow list (${m.categoryAllow.join(", ")}).`);
+  if (request?.merchantId && m.merchantDeny.includes(request.merchantId)) conflicts.push(`Merchant ${request.merchantId} is on the deny list.`);
+  else if (request?.merchantId && m.merchantAllow.length && !m.merchantAllow.includes(request.merchantId)) conflicts.push(`Merchant ${request.merchantId} is not on the allow list (${m.merchantAllow.join(", ")}).`);
+  if (conflicts.length) return { status: "clarify", reason: `${conflicts.join(" ")} Change the sentence or the mandate, then search again.` };
   return { status: "ready", reason: "Confirmed mandate is valid" };
 }
 
 export function proposeMandate(text: string, current: Mandate): Decision & { mandate: Mandate } {
   if (hasInjection(text)) return { status: "terminate", reason: "User instruction attempts to override authorization", mandate: current };
   const next = { ...current };
-  let conflict = false;
-  for (const [key, pattern] of [
-    ["perItem", /(?:per\s*item|单项|每项)\s*[:=]?\s*(\d+(?:\.\d+)?)/i],
-    ["perOrder", /(?:per\s*order|单笔|每单)\s*[:=]?\s*(\d+(?:\.\d+)?)/i],
-    ["rolling7d", /(?:rolling\s*7d|七天|7天)\s*[:=]?\s*(\d+(?:\.\d+)?)/i],
+  const blocked: string[] = [];
+  for (const [key, label, pattern] of [
+    ["perItem", "Per item", /(?:per\s*item|单项|每项)\s*[:=]?\s*(\d+(?:\.\d+)?)/i],
+    ["perOrder", "Per order", /(?:per\s*order|单笔|每单)\s*[:=]?\s*(\d+(?:\.\d+)?)/i],
+    ["rolling7d", "Rolling 7 days", /(?:rolling\s*7d|七天|7天)\s*[:=]?\s*(\d+(?:\.\d+)?)/i],
   ] as const) {
     const match = text.match(pattern);
-    if (match) { const value = Number(match[1]); if (value > current[key]) conflict = true; else next[key] = value; }
+    if (!match) continue;
+    const value = Number(match[1]);
+    if (value > current[key]) blocked.push(`${label} ${value} is above the saved limit of ${current[key]}.`);
+    else next[key] = value;
   }
-  if (/auto|自动/i.test(text) && current.confirmMode !== "auto") conflict = true;
-  if (/manual|手动/i.test(text) && current.confirmMode !== "manual") conflict = true;
-  if (/allow\s+merchant|允许商家/i.test(text)) conflict = true;
+  if (/auto|自动/i.test(text) && current.confirmMode !== "auto") blocked.push(`The sentence asks for auto confirm, and the saved mandate is ${current.confirmMode}.`);
+  if (/manual|手动/i.test(text) && current.confirmMode !== "manual") blocked.push(`The sentence asks for manual confirm, and the saved mandate is ${current.confirmMode}.`);
+  if (/allow\s+merchant|允许商家/i.test(text)) blocked.push("A sentence cannot add an allowed merchant.");
   if (/exclude rewards|不计奖励/i.test(text)) next.includeRewards = false;
-  return { status: conflict ? "clarify" : "ready", reason: conflict ? "Proposal conflicts with the form; limits and confirm mode were not raised" : "Review and confirm the proposed form", mandate: conflict ? current : next };
+  if (blocked.length) return { status: "clarify", reason: `${blocked.join(" ")} The saved form was not changed. Type a higher limit on the form.`, mandate: current };
+  return { status: "ready", reason: "Review and confirm the proposed form", mandate: next };
 }

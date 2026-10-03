@@ -16,8 +16,9 @@ export function resolveWeights(text: string, explicit?: Weights) {
   const weights = explicit ?? inferred;
   const invalid = Object.values(weights).some((n) => !Number.isFinite(n) || n < 0);
   const conflict = explicit && inferred !== DEFAULT_WEIGHTS && Object.keys(inferred).some(k => explicit[k as keyof Weights] !== inferred[k as keyof Weights]);
+  const asked = explicit ? `relevance ${explicit.relevance}, cash ${explicit.cash}, rating ${explicit.rating}, purchases ${explicit.purchases}, history ${explicit.history}` : "";
   return { status: invalid ? "terminate" as const : conflict ? "clarify" as const : "ready" as const, weights,
-    reason: invalid ? "Weights must be finite and at least 0" : conflict ? "Explicit weights take precedence; confirm conflicting preference before continuing" : "Ranking weights resolved" };
+    reason: invalid ? "Weights must be finite and at least 0" : conflict ? `The sentence asks for the cheapest offer. The mandate comparison is ${asked}. Confirm to keep that comparison.` : "Ranking weights resolved" };
 }
 export function offerMoney(offer: Offer, qty: number, includeRewards: boolean, tender?: PayTender) {
   const rule = [...(offer.cardRule ? [offer.cardRule] : []), ...(offer.cardRules ?? [])].find(item => item.tender === tender);
@@ -51,5 +52,5 @@ export function rankOffers(offers: Offer[], goal: Goal, m: Mandate, history: str
   const compared = scored.map(row => ({ sku: row.offer.sku_id, merchant: row.offer.merchant_id, cash: row.money.cashTotal, tender: row.tender, score: row.score,
     parts: `relevance ${row.breakdown.relevance.toFixed(4)}, cash ${row.breakdown.cash.toFixed(4)}, rating ${row.breakdown.rating.toFixed(4)}, purchases ${row.breakdown.purchases.toFixed(4)}, history ${row.breakdown.history.toFixed(4)}, reward ${row.rewardBonus.toFixed(4)}` }));
   return { status: !top.length ? "terminate" as const : tied ? "clarify" as const : "ready" as const, offers: top, compared,
-    reason: !top.length ? "No clean matching offers" : tied ? "Equal highest scores: choose an offer" : "Top offers for one goal and one merchant" };
+    reason: !top.length ? "No clean matching offers" : tied ? `Equal scores for ${scored[0].offer.name} and ${scored[1].offer.name}. Choose one.` : "Top offers for one goal and one merchant" };
 }

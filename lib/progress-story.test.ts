@@ -27,3 +27,11 @@ test("a quote attempt becomes a short role story", () => {
     "Shopper is waiting for you to confirm the quote.",
   ]);
 });
+
+test("a mandate conflict names the limit in the story", () => {
+  const lines = progressStory([
+    row({ step: "mandate", ruleId: "request_conflict", from: "mandate", to: "shopper", numbers: { status: "clarify", reason: "The request budget of 500 is above the per-order limit of 400." } }),
+  ]);
+  expect(lines[0]).toContain("500");
+  expect(lines[0]).toContain("400");
+});

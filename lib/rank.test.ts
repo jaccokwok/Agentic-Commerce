@@ -24,7 +24,10 @@ test("history raises score, an exact tie clarifies", () => {
 });
 test("explicit weights override inferred values but contradictions require clarification", () => {
   const explicit = { ...DEFAULT_WEIGHTS };
-  expect(resolveWeights("cheapest", explicit)).toMatchObject({ status: "clarify", weights: explicit });
+  const clash = resolveWeights("cheapest", explicit);
+  expect(clash.status).toBe("clarify");
+  expect(clash.reason).toContain("cheapest");
+  expect(clash.reason).toContain("cash 0.25");
   expect(resolveWeights("", explicit).status).toBe("ready");
 });
 test("one cash override does not have to sum to 1", () => {

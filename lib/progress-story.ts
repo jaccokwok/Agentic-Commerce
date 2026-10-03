@@ -10,7 +10,7 @@ function lineFor(row: TraceRow, seen: { scored: boolean; limited: boolean; dropp
   const rule = row.ruleId;
   if (rule === "typed_intent") return "Shopper turns the sentence into catalogue items.";
   if (rule === "validate_form" && reply(row)) return row.numbers.status === "ready" ? "Mandate accepts the saved limits." : "Mandate rejects the saved limits.";
-  if (rule === "request_conflict" && reply(row)) return row.numbers.status === "ready" ? "Mandate accepts this request." : "Mandate says this request conflicts with the limits.";
+  if (rule === "request_conflict" && reply(row)) return row.numbers.status === "ready" ? "Mandate accepts this request." : typeof row.numbers.reason === "string" && row.numbers.reason ? `Mandate: ${row.numbers.reason}` : "Mandate says this request conflicts with the limits.";
   if (rule === "still_valid" && reply(row)) return row.numbers.status === "ready" ? "Mandate rechecks the limits and they still hold." : "Mandate finds the limits no longer hold.";
   if (rule === "shared_request") return "Shopper reserves the budget share for this item.";
   if (rule === "filter_limits" && reply(row)) return "Mandate checks which offers fit the limits.";
