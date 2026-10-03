@@ -17,7 +17,6 @@ const BLURB: Record<string, string> = {
   agent_surcharge: "One row charges the agent more than a person. That row is dropped. A clean sibling can still be bought.",
   omitted_shipping: "The only row has no shipping. It is dropped. Nothing is booked.",
   price_rollback: "The quote moves to cash 360. The user declines. The coupon goes back to unused.",
-  refund_no_restore: "A refunded receipt does not give the 168-hour budget back, so the next buy still stops.",
   failed_negotiation: "Every party-shop row is out of stock. Each negotiate is rejected. Nothing is booked.",
   timeout_after_pay: "The charge is booked, then the reply times out. The same key is retried and reconciles.",
   timeout_before_pay: "The payer fails before any charge. Wallet is not tried. Nothing is booked.",

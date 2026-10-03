@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { logoutAction } from "@/app/actions/auth";
-import { refundAction } from "@/app/actions/shop";
 import GlowBackdrop from "@/components/glow-backdrop";
 import SiteHeader from "@/components/site-header";
+import TraceLog from "@/components/trace-log";
 import { getSessionUser } from "@/lib/auth";
 import { getUserById } from "@/lib/db";
-import { currentSpend, latestReceipt } from "@/lib/ledger";
+import { currentSpend, latestReceipt, traceForReceipt } from "@/lib/ledger";
 
 export const metadata: Metadata = {
   title: "Your account — Scout",
@@ -30,6 +30,7 @@ export default async function AccountPage() {
   const record = await getUserById(user.id);
   const spent = await currentSpend(user.id);
   const latest = latestReceipt(user.id);
+  const latestTrace = latest ? traceForReceipt(user.id, latest.trace_id) : null;
   const memberSince = record?.created_at
     ? new Date(record.created_at.replace(" ", "T") + "Z").toLocaleDateString(
         "en-US",
@@ -69,13 +70,12 @@ export default async function AccountPage() {
                 <div><dt>Cashback on that receipt</dt><dd className="font-semibold">HKD {(latest.cashback_cents / 100).toFixed(2)}</dd></div>
               </>}
             </dl>
-            {latest && !latest.refunded_at && <form action={refundAction} className="mt-4">
-              <input type="hidden" name="key" value={latest.key} />
-              <button type="submit" className="rounded-full bg-neutral-900 px-4 py-2 text-sm font-semibold text-white">Refund this receipt</button>
-            </form>}
-            {latest?.refunded_at != null && <p className="mt-4 text-sm font-medium text-neutral-900">This receipt is refunded. The 168-hour figure did not change.</p>}
             {!latest && <p className="mt-4 text-sm text-neutral-600">No mock receipt yet.</p>}
-            <p className="mt-4 text-sm leading-relaxed text-neutral-600">A refund does not restore the rolling seven-day budget. Original cash payments remain counted for the preceding continuous 168 hours. These references are created with your account; checkout never asks for a card number.</p>
+            <p className="mt-4 text-sm leading-relaxed text-neutral-600">Original cash payments remain counted for the preceding continuous 168 hours. These references are created with your account; checkout never asks for a card number.</p>
+            {latestTrace && <details className="mt-4 border-t border-neutral-200 pt-4">
+              <summary className="text-sm font-medium text-neutral-900">what&apos;s happend?</summary>
+              <div className="mt-4"><TraceLog trace={latestTrace} /></div>
+            </details>}
             <Link
               href="/"
               className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#c8f14f] px-4 py-2 text-sm font-semibold text-neutral-900 transition hover:bg-[#bdef38]"

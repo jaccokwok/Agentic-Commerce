@@ -4,8 +4,7 @@ import { getSessionUser } from "@/lib/auth";
 import { saveMandate, createRequest, searchRequest, actOnAttempt, type RequestDraft } from "@/lib/shop-service";
 import type { Mandate } from "@/lib/mandate";
 import type { AttemptEvent } from "@/lib/attempt";
-import { redirect } from "next/navigation";
-import { receipt, refund, spent7d } from "@/lib/ledger";
+import { spent7d } from "@/lib/ledger";
 
 async function authenticated<T>(run: (userId: number) => T | Promise<T>) {
   const user = await getSessionUser();
@@ -27,12 +26,4 @@ export async function attemptAction(attemptId: string, event: AttemptEvent) {
 }
 export async function spendingAction() {
   return authenticated(id => spent7d(id, Date.now()));
-}
-export async function refundAction(formData: FormData) {
-  const user = await getSessionUser();
-  if (!user) redirect("/login?next=/account");
-  const key = String(formData.get("key") ?? "");
-  const row = receipt(key);
-  if (row && row.user_id === user.id && row.refunded_at == null) refund(user.id, key, Date.now());
-  redirect("/account");
 }

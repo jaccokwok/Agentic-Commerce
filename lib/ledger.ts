@@ -1,8 +1,9 @@
 import type { DatabaseSync } from "node:sqlite";
 import { getDb } from "@/lib/db";
 import { cents } from "@/lib/money";
+import type { Trace } from "@/lib/trace";
 
-export type Receipt = { key: string; user_id: number; trace_id: string; request_id: string; goal_id: string; skus: string; cash_cents: number; cashback_cents: number; paid_at: number; refunded_at: number | null };
+export type Receipt = { key: string; user_id: number; trace_id: string; request_id: string; goal_id: string; skus: string; cash_cents: number; cashback_cents: number; paid_at: number };
 export function receipt(key: string, database = getDb()): Receipt | null {
   return database.prepare("SELECT * FROM orders WHERE key = ?").get(key) as Receipt | undefined ?? null;
 }
@@ -50,6 +51,8 @@ export function book(input: { userId: number; key: string; traceId: string; requ
 export function latestReceipt(userId: number, database = getDb()): Receipt | null {
   return database.prepare("SELECT * FROM orders WHERE user_id = ? ORDER BY paid_at DESC LIMIT 1").get(userId) as Receipt | undefined ?? null;
 }
-export function refund(userId: number, key: string, now: number, database = getDb()) {
-  database.prepare("UPDATE orders SET refunded_at = ?, cashback_cents = 0 WHERE key = ? AND user_id = ? AND refunded_at IS NULL").run(now, key, userId);
+export function traceForReceipt(userId: number, traceId: string, database = getDb()): Trace | null {
+  const row = database.prepare("SELECT payload FROM attempts WHERE user_id = ? AND json_extract(payload, '$.trace.id') = ? LIMIT 1").get(userId, traceId);
+  if (!row) return null;
+  return (JSON.parse(String(row.payload)) as { trace: Trace }).trace;
 }

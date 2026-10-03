@@ -8,7 +8,6 @@
   { "name": "agent_surcharge", "expected": "paid" },
   { "name": "omitted_shipping", "expected": "terminate" },
   { "name": "price_rollback", "expected": "offers" },
-  { "name": "refund_no_restore", "expected": "terminate" },
   { "name": "failed_negotiation", "expected": "terminate" },
   { "name": "timeout_after_pay", "expected": "paid" },
   { "name": "timeout_before_pay", "expected": "terminate" }
