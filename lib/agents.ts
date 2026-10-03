@@ -6,7 +6,7 @@ import { issueIntent, issuePayment, verifyPair } from "@/lib/credential";
 import { mockPay, type PayContext, type PayInput } from "@/lib/pay";
 import type { Agent, AgentMessage } from "@/lib/message";
 import { speak } from "@/lib/complete";
-import { hasInjection, loadCatalog, type Offer } from "@/lib/catalog";
+import { hasInjection, loadCatalog, rawOffers, type Offer } from "@/lib/catalog";
 import type { Mandate } from "@/lib/mandate";
 import type { Quote } from "@/lib/quote";
 
@@ -26,6 +26,76 @@ async function finish(message: AgentMessage, type: string, body: Record<string, 
 
 export const websiteHits: string[] = [];
 const WEBSITES = ["taobao", "hktvmall", "pinduoduo"] as const;
+
+export type MockShoppingOffer = { sku: string; name: string; platform: string; price: number; currency: "HKD" };
+export type MockAgentStep = { role: "shopper" | "mandate" | "auditor" | "merchant" | "payer"; status: "complete" | "blocked" | "waiting" | "pending"; message: string };
+export type MockShoppingRun = { budget: number; offers: MockShoppingOffer[]; selected: MockShoppingOffer | null; steps: MockAgentStep[] };
+
+const MOCK_ORDER_LIMIT = 400;
+const REQUEST_FILLER = new Set(["a", "an", "and", "below", "buy", "find", "for", "get", "hkd", "less", "max", "of", "pair", "please", "than", "under"]);
+
+function requestBudget(request: string) {
+  const match = request.match(/(?:under|below|less than|budget(?: of)?)\s*(?:hkd\s*)?([\d,]+(?:\.\d+)?)\s*(k)?/i);
+  return match ? Number(match[1].replaceAll(",", "")) * (match[2] ? 1000 : 1) : MOCK_ORDER_LIMIT;
+}
+
+function requestTerms(request: string) {
+  return (request.toLowerCase().match(/[a-z]+/g) ?? [])
+    .filter(word => word.length > 2 && !REQUEST_FILLER.has(word))
+    .map(word => word.endsWith("s") ? word.slice(0, -1) : word);
+}
+
+export function runMockShoppingRequest(request: string): MockShoppingRun {
+  const steps: MockAgentStep[] = [
+    { role: "shopper", status: "complete", message: "Request received." },
+    { role: "mandate", status: "pending", message: "Checking the HKD 400 per-order limit." },
+    { role: "auditor", status: "pending", message: "Checking marketplace listings." },
+    { role: "shopper", status: "pending", message: "Comparing matching offers." },
+    { role: "merchant", status: "pending", message: "Preparing a mock quote." },
+    { role: "payer", status: "waiting", message: "Waiting for your confirmation." },
+  ];
+  const budget = requestBudget(request);
+
+  if (hasInjection(request)) {
+    steps[0] = { role: "shopper", status: "blocked", message: "Request conflicts with the spending form. No search was made." };
+    steps[5] = { role: "payer", status: "blocked", message: "Nothing can be confirmed." };
+    return { budget, offers: [], selected: null, steps };
+  }
+  if (budget > MOCK_ORDER_LIMIT) {
+    steps[1] = { role: "mandate", status: "blocked", message: `HKD ${budget.toLocaleString()} is above the HKD ${MOCK_ORDER_LIMIT} per-order limit.` };
+    steps[5] = { role: "payer", status: "blocked", message: "Nothing can be confirmed." };
+    return { budget, offers: [], selected: null, steps };
+  }
+
+  steps[1] = { role: "mandate", status: "complete", message: `Budget fits the HKD ${MOCK_ORDER_LIMIT} per-order limit.` };
+  steps[2] = { role: "auditor", status: "complete", message: "Unsafe and incomplete listings were removed." };
+  const terms = requestTerms(request);
+  const offers = loadCatalog(rawOffers).offers
+    .filter(offer => terms.some(term => `${offer.category_id} ${offer.name} ${offer.description} ${offer.brand} ${offer.appearance}`
+      .toLowerCase().split(/[^a-z]+/).filter(Boolean).some(word => (word.endsWith("s") ? word.slice(0, -1) : word) === term)))
+    .map(offer => ({ sku: offer.sku_id, name: offer.name, platform: offer.platform_id, price: offer.shelf + offer.shipping!, currency: "HKD" as const }))
+    .filter(offer => offer.price <= budget)
+    .sort((a, b) => a.price - b.price)
+    .slice(0, 6);
+
+  if (offers.length === 0) {
+    steps[3] = { role: "shopper", status: "complete", message: "No matching products fit the request." };
+    steps[4] = { role: "merchant", status: "blocked", message: "No quote is available." };
+    steps[5] = { role: "payer", status: "blocked", message: "Nothing can be confirmed." };
+  } else {
+    steps[3] = { role: "shopper", status: "complete", message: `${offers.length} matching offers compared across marketplaces.` };
+    steps[4] = { role: "merchant", status: "complete", message: "A mock quote is ready for review." };
+  }
+  return { budget, offers, selected: offers[0] ?? null, steps };
+}
+
+export function confirmMockPurchase(offer: MockShoppingOffer | null, mandateLimit = MOCK_ORDER_LIMIT) {
+  if (!offer) return { status: "unavailable" as const, message: "There is no offer to confirm." };
+  if (!Number.isFinite(offer.price) || offer.price < 0 || !Number.isFinite(mandateLimit) || mandateLimit < offer.price || mandateLimit > MOCK_ORDER_LIMIT || mandateLimit < 0) {
+    return { status: "mandate_blocked" as const, message: `The quote must fit your mandate and the HKD ${MOCK_ORDER_LIMIT} order limit.` };
+  }
+  return { status: "paid" as const, message: `Mock purchase confirmed for ${offer.name}. No real payment was made.` };
+}
 
 function stockReply(message: AgentMessage, selected: Offer): Promise<AgentMessage> {
   return finish(message, "out_of_stock", { status: "rejected", coupon: "unused", reason: "out_of_stock", shelf: selected.shelf, shipping: selected.shipping ?? null, offer: null });

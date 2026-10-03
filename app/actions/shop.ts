@@ -6,6 +6,18 @@ import type { Mandate } from "@/lib/mandate";
 import type { AttemptEvent } from "@/lib/attempt";
 import { redirect } from "next/navigation";
 import { receipt, refund, spent7d } from "@/lib/ledger";
+import { confirmMockPurchase, runMockShoppingRequest, type MockShoppingOffer } from "@/lib/agents";
+
+export async function mockSearchAction(request: string) {
+  if (typeof request !== "string" || request.trim().length === 0 || request.length > 500) {
+    throw new Error("Enter a request of 1 to 500 characters.");
+  }
+  return runMockShoppingRequest(request.trim());
+}
+
+export async function mockConfirmAction(offer: MockShoppingOffer | null, mandateLimit: number) {
+  return confirmMockPurchase(offer, mandateLimit);
+}
 
 async function authenticated<T>(run: (userId: number) => T | Promise<T>) {
   const user = await getSessionUser();
