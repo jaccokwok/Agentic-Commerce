@@ -27,23 +27,36 @@ function list(value: string): string[] {
   return value.split(",").map((part) => part.trim()).filter(Boolean);
 }
 
-export default function MandateDialog({ open, signedIn, disabled, onClose, onSaved }: {
+function copyMandate(mandate: Mandate): Mandate {
+  return {
+    ...mandate,
+    merchantAllow: [...mandate.merchantAllow],
+    merchantDeny: [...mandate.merchantDeny],
+    categoryAllow: [...mandate.categoryAllow],
+    categoryDeny: [...mandate.categoryDeny],
+    tenders: [...mandate.tenders],
+  };
+}
+
+export default function MandateDialog({ open, signedIn, current, editing, disabled, onClose, onSaved }: {
   open: boolean;
   signedIn: boolean;
+  current?: Mandate;
+  editing: boolean;
   disabled: boolean;
   onClose: () => void;
   onSaved: (mandate: Mandate) => void;
 }) {
-  const base = defaultMandate();
-  const [step, setStep] = useState<"write" | "review">("write");
+  const basis = editing && current ? copyMandate(current) : defaultMandate();
+  const [step, setStep] = useState<"write" | "review">(editing ? "review" : "write");
   const [sentence, setSentence] = useState("");
-  const [form, setForm] = useState<Mandate>(base);
+  const [form, setForm] = useState<Mandate>(basis);
   const [notice, setNotice] = useState("");
 
   if (!open) return null;
 
   function continueFromSentence() {
-    const proposal = proposeMandate(sentence, defaultMandate());
+    const proposal = proposeMandate(sentence, editing && current ? copyMandate(current) : defaultMandate());
     if (proposal.status !== "ready") {
       setNotice(proposal.reason);
       return;
@@ -53,8 +66,8 @@ export default function MandateDialog({ open, signedIn, disabled, onClose, onSav
     setStep("review");
   }
 
-  async function save() {
-    const result = await mandateAction(withDefaults(form));
+  async function save(revoked = false) {
+    const result = await mandateAction({ ...withDefaults(form), revoked });
     if (result.data) onSaved(result.data);
     else setNotice(result.error ?? "Mandate was not saved");
   }
@@ -64,8 +77,10 @@ export default function MandateDialog({ open, signedIn, disabled, onClose, onSav
       {step === "write" ? (
         <>
           <p className="shop-muted mt-2">
-            Write limits, confirm mode, and tenders in one sentence. A sentence cannot raise a limit or change who may authorize a purchase.
-            Unmentioned fields stay at the defaults: 250 per item, 400 per order, 1,000 rolling 7 days, manual confirm, card, rewards on, no expiry.
+            Write limits, confirm mode, and tenders in one sentence. A sentence cannot raise a limit, switch confirm mode, or name an allowed merchant.
+            {editing
+              ? " Unmentioned fields stay on your saved mandate. Type a higher limit on the form."
+              : " Unmentioned fields stay at the defaults: 250 per item, 400 per order, 1,000 rolling 7 days, manual confirm, card, rewards on, no expiry."}
           </p>
           {!signedIn && (
             <p className="mt-3 text-sm">
@@ -79,7 +94,10 @@ export default function MandateDialog({ open, signedIn, disabled, onClose, onSav
             <textarea value={sentence} disabled={disabled} onChange={(event) => setSentence(event.target.value)} placeholder="Manual confirm, card only, rewards on" />
           </label>
           {notice && <p role="alert" className="shop-error mt-3">{notice}</p>}
-          <button type="button" className="shop-primary mt-4" disabled={disabled} onClick={continueFromSentence}>Continue</button>
+          <div className="mt-4 flex gap-3">
+            <button type="button" className="shop-primary" disabled={disabled} onClick={continueFromSentence}>Continue</button>
+            <button type="button" className="shop-secondary" disabled={disabled} onClick={() => { setNotice(""); setForm(basis); setStep("review"); }}>Edit the form</button>
+          </div>
         </>
       ) : (
         <>
@@ -116,9 +134,10 @@ export default function MandateDialog({ open, signedIn, disabled, onClose, onSav
           <label className="shop-check mt-4"><input type="checkbox" checked={form.includeRewards} disabled={disabled} onChange={(event) => setForm({ ...form, includeRewards: event.target.checked })} />Include rewards in the score</label>
           <label className="shop-check mt-2"><input type="checkbox" checked={form.oneMerchant} disabled={disabled} onChange={(event) => setForm({ ...form, oneMerchant: event.target.checked })} />One merchant for the whole order</label>
           {notice && <p role="alert" className="shop-error mt-3">{notice}</p>}
-          <div className="mt-4 flex gap-3">
+          <div className="mt-4 flex flex-wrap gap-3">
             <button type="button" className="shop-secondary" disabled={disabled} onClick={() => { setNotice(""); setStep("write"); }}>Edit sentence</button>
-            <button type="button" className="shop-primary" disabled={disabled} onClick={() => void save()}>Submit</button>
+            <button type="button" className="shop-primary" disabled={disabled} onClick={() => void save(false)}>Submit</button>
+            {editing && <button type="button" className="shop-secondary" disabled={disabled} onClick={() => void save(true)}>Revoke</button>}
           </div>
         </>
       )}

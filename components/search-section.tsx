@@ -183,6 +183,11 @@ export default function SearchSection({ signedIn, initialMandate, initialSpent }
           </button>
         </label>
       </form>
+      {signedIn && (
+        <button type="button" className="mt-4 text-sm font-medium text-neutral-700 underline" onClick={() => setMandateOpen(true)}>
+          Change mandate
+        </button>
+      )}
       <ShopProgress rows={attempt?.trace.rows ?? []} status={attempt?.status ?? null} busy={busy} />
       {outcome && <p role="status" className="mt-3 w-full pl-2 text-sm text-neutral-700 sm:pl-6">{outcome}</p>}
       {attempt?.status === "offers" && attempt.offers.length > 0 && !choiceOpen && (
@@ -211,6 +216,8 @@ export default function SearchSection({ signedIn, initialMandate, initialSpent }
         <MandateDialog
           open
           signedIn={signedIn}
+          current={mandate}
+          editing={!!mandate && !needsMandate(mandate)}
           disabled={busy}
           onClose={() => setMandateOpen(false)}
           onSaved={(saved) => { setMandate(saved); setConfirmed(!saved.revoked); setMandateOpen(false); void invalidate(); }}
