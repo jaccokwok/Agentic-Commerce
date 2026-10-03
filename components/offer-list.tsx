@@ -8,6 +8,7 @@ export function OfferChoice({ item, selected, disabled, onSelect }: { item: Rank
     <p className="shop-muted">{item.offer.platform_id} · {item.offer.merchant_id}</p>
     <h3 className="mt-2">{item.offer.name}</h3>
     <p className="mt-3 text-xl font-semibold">HKD {item.money.cashTotal.toFixed(2)} <span className="text-xs font-normal">cash, shipping included</span></p>
+    {item.money.cardOff > 0 ? <p className="shop-muted">{item.tender} takes HKD {item.money.cardOff.toFixed(2)} off after merchandise {item.money.merchandise.toFixed(2)}</p> : null}
     <p className="shop-muted">Effective cost HKD {item.money.effectiveCost.toFixed(2)} · Rating {item.offer.rating.toFixed(1)}/5</p>
     <p className="shop-muted">Score {item.score.toFixed(4)} · reward bonus {item.rewardBonus.toFixed(4)}</p>
     <details className="mt-3 text-xs"><summary>Weights and score breakdown</summary>

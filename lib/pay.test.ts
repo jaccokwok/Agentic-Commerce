@@ -50,6 +50,30 @@ test("card declined before charge lets wallet book once; a charge does not start
   expect(mockPay(input, { ...context, mandate, simulation: "timeout_after" }, charged).status).toBe("clarify");
   expect(receipt("one", charged)?.cash_cents).toBe(35000);
   expect(receipt("wallet:one", charged)).toBeNull();
+  const discounted = setup();
+  expect(mockPay(input, { ...context, mandate, simulation: "card_declined", cardOff: 40 }, discounted).status).toBe("clarify");
+  expect(receipt("one", discounted)).toBeNull();
+  expect(receipt("wallet:one", discounted)).toBeNull();
+  expect(spent7d(1, 1000, discounted)).toBe(0);
+  const timed = setup();
+  expect(mockPay(input, { ...context, mandate, simulation: "timeout_after", cardOff: 40 }, timed).status).toBe("clarify");
+  expect(receipt("one", timed)?.cash_cents).toBe(35000);
+  expect(receipt("wallet:one", timed)).toBeNull();
+});
+test("a named card books its own key, and a discount decline does not start the next card", () => {
+  const mandate = { ...defaultMandate(), tenders: ["hsbc-visa", "citi-mastercard", "wallet"] };
+  const named = { ...input, tender: "hsbc-visa", amount: 260 };
+  const declined = setup();
+  expect(mockPay(named, { ...context, mandate, simulation: "card_declined", cardOff: 40 }, declined).status).toBe("clarify");
+  expect(receipt("hsbc-visa:one", declined)).toBeNull();
+  expect(receipt("citi-mastercard:one", declined)).toBeNull();
+  expect(spent7d(1, 1000, declined)).toBe(0);
+  const timed = setup();
+  expect(mockPay(named, { ...context, mandate, simulation: "timeout_after", cardOff: 40 }, timed).status).toBe("clarify");
+  expect(receipt("hsbc-visa:one", timed)?.cash_cents).toBe(26000);
+  expect(receipt("citi-mastercard:one", timed)).toBeNull();
+  expect(mockPay(named, { ...context, mandate, cardOff: 40 }, timed).status).toBe("paid");
+  expect(spent7d(1, 1000, timed)).toBe(260);
 });
 test("a failed credential check does not book", () => {
   const database = setup();

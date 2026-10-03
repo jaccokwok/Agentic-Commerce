@@ -6,7 +6,7 @@ import { complete, proposeTurn } from "@/lib/complete";
 import type { Mandate } from "@/lib/mandate";
 import { checkAllocations } from "@/lib/allocation";
 import { rankOffers, resolveWeights, DEFAULT_WEIGHTS, type RankedOffer, type Weights } from "@/lib/rank";
-import { createQuote, checkQuote, quoteChanged, searchDeadline, clarifyDeadline, type Quote } from "@/lib/quote";
+import { createQuote, checkQuote, quoteChanged, searchDeadline, clarifyDeadline, allowedTenders, type Quote } from "@/lib/quote";
 import { releaseCoupon, type CouponState } from "@/lib/negotiate";
 import { historySkus, recentSkus, spent7d, spentShare, spentRequest, receipt } from "@/lib/ledger";
 import type { PayContext } from "@/lib/pay";
@@ -20,7 +20,7 @@ export type AttemptInput = { userId: number; requestId: string; text: string; go
 export type Attempt = { id: string; input: AttemptInput; trace: Trace; status: "offers" | "quote" | "clarify" | "terminate" | "paid";
   issue: "list" | "allocation" | "mandate" | "weights" | "tie" | "repeat" | "price" | "pay" | null;
   reason: string; offers: RankedOffer[]; selected: Offer | null; quote: Quote | null;
-  quoteVersion: number; coupon: CouponState; clarifyExpiresAt: number | null; idempotencyKey: string; repeatedAccepted: boolean };
+  quoteVersion: number; coupon: CouponState; clarifyExpiresAt: number | null; idempotencyKey: string; repeatedAccepted: boolean; declinedTender?: string | null };
 export type AttemptContext = { database: DatabaseSync; now: () => number; vaultId: string; addressId: string;
   catalog?: Offer[]; lookup?: (sku: string) => Offer | undefined; paySimulation?: PayContext["simulation"]; authorize?: () => void; flipCredential?: boolean;
   draft?: (sentence: string) => unknown | Promise<unknown> };
@@ -152,7 +152,10 @@ export async function runAttempt(input: AttemptInput, ctx: AttemptContext): Prom
   log(a.trace, "search", "catalog_only", "Searched fixed mock catalogue; no network model", { clean: catalog.kept.length, eligible: eligible.length, timeout: searchDeadline(started, input.mandate) }, ctx.now());
   const ranked = rankOffers(eligible, goal, input.mandate, historySkus(input.userId, ctx.database), preferences.weights);
   a.offers = ranked.offers;
-  log(a.trace, "rank", "one_merchant_top3", ranked.reason, { offers: a.offers.length, topScore: a.offers[0]?.score ?? null }, ctx.now());
+  const w = preferences.weights;
+  log(a.trace, "rank", "weights", "Shares used for this ranking", { weights: `relevance ${w.relevance}, cash ${w.cash}, rating ${w.rating}, purchases ${w.purchases}, history ${w.history}` }, ctx.now());
+  for (const row of ranked.compared) log(a.trace, "rank", "scored", row.sku, { sku: row.sku, cash: row.cash, tender: row.tender, score: row.score, parts: row.parts }, ctx.now());
+  log(a.trace, "rank", "one_merchant_top3", ranked.reason, { offers: a.offers.length, topScore: a.offers[0]?.score ?? null, winner: a.offers[0]?.offer.sku_id ?? null }, ctx.now());
   if (ranked.status === "terminate") return stop(a, ranked.reason, ctx.now());
   if (ranked.status === "clarify") return clarify(a, "tie", ranked.reason, ctx.now());
   await bargain(a, a.offers.map(choice => choice.offer), ctx, "stop");
@@ -167,11 +170,22 @@ async function pay(a: Attempt, ctx: AttemptContext) {
   const input = { vaultId: ctx.vaultId, addressId: ctx.addressId, amount: q.cashTotal, currency: q.currency,
     tender: q.tender, expiresAt: q.expiresAt, idempotencyKey: a.idempotencyKey };
   const context: PayContext = { userId: a.input.userId, requestId: a.input.requestId, goalId: a.input.goalId, traceId: a.trace.id,
-    skus: q.items.map(i => i.sku_id), cashback: q.reward.cashback, mandate: a.input.mandate, now: ctx.now(), simulation: ctx.paySimulation,
+    skus: q.items.map(i => i.sku_id), cashback: q.reward.cashback, mandate: a.input.mandate, now: ctx.now(),
+    simulation: a.declinedTender && a.declinedTender !== q.tender ? undefined : ctx.paySimulation, cardOff: q.cardOff,
     guard: () => { ctx.authorize?.(); const limits = remaining(a, ctx); const gate = checkQuote(q, a.input.mandate, limits.share, limits.rolling, ctx.now()); if (gate.status !== "ready") throw new Error(gate.reason); } };
-  let result = (await deliver(a.trace, { traceId: a.trace.id, from: "shopper", to: "payer", type: "charge", body: { input, context, ruleId: "mock_refs_idempotency", cash: q.cashTotal } }, ctx.now(), "pay", ctx.database)).body as { status: "paid" | "clarify" | "terminate"; reason: string };
+  let result = (await deliver(a.trace, { traceId: a.trace.id, from: "shopper", to: "payer", type: "charge", body: { input, context, ruleId: "mock_refs_idempotency", cash: q.cashTotal, tender: q.tender, idempotencyKey: a.idempotencyKey } }, ctx.now(), "pay", ctx.database)).body as { status: "paid" | "clarify" | "terminate"; reason: string };
+  if (result.status === "clarify" && q.cardOff > 0 && ctx.paySimulation === "card_declined") {
+    const rest = allowedTenders(a.input.mandate).filter(tender => tender !== q.tender);
+    if (!rest.length || !a.selected) return stop(a, "Card was declined before charge and no later tender booked", ctx.now());
+    a.declinedTender = q.tender;
+    const updated = createQuote(a.selected, q.items[0].qty, { ...a.input.mandate, tenders: rest }, ctx.now());
+    updated.expiresAt = q.expiresAt;
+    a.quote = updated; a.quoteVersion += 1;
+    log(a.trace, "quote", "card_reprice", "Card discount does not apply to the next tender", { cash: updated.cashTotal, tender: updated.tender }, ctx.now());
+    return clarify(a, "price", "Card discount does not apply to the next tender. Accept the new quote or roll back.", ctx.now());
+  }
   if (result.status === "clarify") {
-    result = (await deliver(a.trace, { traceId: a.trace.id, from: "shopper", to: "payer", type: "retry", body: { input, context: { ...context, simulation: ctx.paySimulation === "retry_failed" ? "retry_failed" : undefined }, ruleId: "same_key_retry", cash: q.cashTotal } }, ctx.now(), "pay", ctx.database)).body as { status: "paid" | "clarify" | "terminate"; reason: string };
+    result = (await deliver(a.trace, { traceId: a.trace.id, from: "shopper", to: "payer", type: "retry", body: { input, context: { ...context, simulation: ctx.paySimulation === "retry_failed" ? "retry_failed" : undefined }, ruleId: "same_key_retry", cash: q.cashTotal, tender: q.tender, idempotencyKey: a.idempotencyKey } }, ctx.now(), "pay", ctx.database)).body as { status: "paid" | "clarify" | "terminate"; reason: string };
   }
   if (result.status === "paid") { a.status = "paid"; a.issue = null; a.clarifyExpiresAt = null; a.coupon = "spent"; a.reason = result.reason; return a; }
   if (result.status === "clarify") return clarify(a, "pay", result.reason, ctx.now());
@@ -204,6 +218,7 @@ export async function advanceAttempt(a: Attempt, event: AttemptEvent, ctx: Attem
   }
   if (event.type === "accept_repeat" && a.issue === "repeat") {
     a.repeatedAccepted = true; a.status = "quote"; a.issue = null; a.clarifyExpiresAt = null; a.reason = "Repeated purchase accepted; review and confirm quote";
+    log(a.trace, "clarify", "accept_repeat", a.reason, { sku: a.quote?.items[0]?.sku_id ?? null }, now);
     return a;
   }
   if (event.type === "price_change" && a.quote && a.selected) {

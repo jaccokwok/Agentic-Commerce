@@ -11,7 +11,7 @@ Each step is one moment. Read it in order.
 
 Five roles: **shopper** (the buyer), **mandate** (the signed spending form), **merchant** (one website: Taobao, HKTV Mall, or Pinduoduo), **auditor** (listings and signatures), **payer** (the only cashier).
 
-Money is always in Hong Kong dollars. The default form allows 250 per item before any coupon, 400 per order, and 1,000 in the past 168 hours. Only card and wallet can pay. The person confirms, unless the form says auto and one offer is clearly first.
+Money is always in Hong Kong dollars. The default form allows 250 per item before any coupon, 400 per order, and 1,000 in the past 168 hours. A charge may use card, hsbc-visa, citi-mastercard, or wallet. The default list is card. The person never types a card number. The person confirms, unless the form says auto and one offer is clearly first.
 
 The numbered flows below are the same gates, one situation at a time. The numbers behind the gates are at the end of this file.
 
@@ -81,13 +81,16 @@ flowchart TD
   sign -->|no| stopSign["Stop. Payer is not asked"]
   sign -->|yes| pay["shopper asks payer"]
   pay -->|paid| booked["Booked once. Coupon spent"]
-  pay -->|card declined before any charge, and wallet is next| pay
+  pay -->|card declined, no card discount, wallet is next| pay
+  pay -->|card declined after a card discount| askCard["Reprice for wallet. If cash rises, ask"]
   pay -->|timeout after the charge was written| same["Retry the same key. Do not start wallet"]
   same --> booked
   pay -->|fail before any charge| stopPay["Stop. Wallet is not used"]
 ```
 
 **Slips.** An intent slip is the signed form. A payment slip is the signed quote. One flipped character, a swapped seller, or a cash total that does not match the quote fails the gate.
+
+**Card discount.** A decline before charge books wallet at the same cash only when the quote used no card discount. If it did, the shopper reprices for wallet and asks. See flow 25.
 
 **Auto.** Same three asks as a person’s confirm. A tie never takes this path.
 
@@ -99,7 +102,10 @@ Cash is what can be booked. The score only chooses a row.
 flowchart TD
   shelf["shelf, already in HKD"] --> line["line = shelf × quantity"]
   line --> merch["merchandise = line − coupon, never below 0"]
-  merch --> cash["cash = merchandise + shipping"]
+  merch --> cardGate{"Card, and merchandise meets this seller's minimum?"}
+  cardGate -->|yes| cardOff["subtract that seller's card discount"]
+  cardGate -->|no| cash["cash = merchandise − card discount + shipping"]
+  cardOff --> cash
   line --> item["Item gate: line at most 250"]
   cash --> order["Order gate: cash at most 400, the share left, and the week left"]
   cash --> scoreCost["score cost = cash − gift × 0.5 when rewards are on"]
@@ -121,7 +127,9 @@ flowchart LR
   f["reward part, or 0"] --> s
 ```
 
-**Score cost.** Used only for ranking. Cash does not shrink when a gift is applied.
+**Card discount.** Money off the charge for the tender the rule names, after this seller’s minimum. Shipping is not part of that minimum. A gift does not include this discount.
+
+**Score cost.** Used only for ranking. Cash does not shrink when a gift is applied. The cash in the score is the cheaper cash among tenders the form allows.
 
 **Reward part.** `cash weight × (cash − score cost) / highest cash`, and only when rewards are on. Otherwise 0.
 
@@ -129,7 +137,7 @@ flowchart LR
 
 **Highest cash and highest count.** At least 1, so one row does not divide by zero.
 
-Default weights are relevance 0.35, cash 0.25, rating 0.15, purchases 0.10, history 0.15. “Cheapest” uses 0.20, 0.60, 0.10, 0.05, 0.05. A full worked cash example is in [Scores, money, and limits](#scores-money-and-limits).
+Default weights are relevance 0.35, cash 0.25, rating 0.15, purchases 0.10, history 0.15. “Cheapest” uses 0.20, 0.60, 0.10, 0.05, 0.05. Why these shares, and why each role chooses, is in [decisions.md](decisions.md). A full worked cash example is in [Scores, money, and limits](#scores-money-and-limits).
 
 ## Words on the gates
 
@@ -144,6 +152,27 @@ Default weights are relevance 0.35, cash 0.25, rating 0.15, purchases 0.10, hist
 | Top three | The best three rows of the winning seller only. |
 | `credentials_ok` | Both slips match the form and the quote. |
 | `credentials_bad` | They do not. The payer is not asked. |
+| Card discount | Money off the charge for the tender the rule names, after the seller’s minimum. It lowers cash. It is not a gift and it is not cashback. |
+| Qualifying merchandise | Merchandise after the shelf coupon. Shipping is excluded. Measured before the card discount. |
+| Vault | `vault_` plus an id, written when the account is created. The pay call sends it. It stands in for a stored card. It is not the card. |
+| Address | `address_` plus an id, written when the account is created. The pay call sends it. Checkout does not ask for a street. |
+| Idempotency key | One booking key per attempt. A retry sends that same key. A generic card books the key alone. Any other tender books `tender:key`. |
+| Intent slip | The signed form: the account’s `did:mock:<user id>`, the limits, the tenders, confirm mode, and expiry. |
+| Payment slip | The signed quote: the intent slip’s signature, the quote’s fingerprint, the cash, the tender, and the seller. |
+
+## The rule every step follows
+
+Code sets the money, the tender, and the booking. A model may explain a step. The tool’s numbers stay.
+
+Only the payer books. A charge or a retry is refused until the auditor has logged `credentials_ok` for this trace.
+
+The shopper sends stored references. Creating the account writes `vault_<id>`, `address_<id>`, and `did:mock:<user id>`. A tender name on the form is a label the shopper already priced. hsbc-visa and citi-mastercard are those labels. They are not card numbers, and no bank is called.
+
+One attempt has one idempotency key. The same key and the same cash return the existing receipt. A different cash on that key stops.
+
+Listing text is data. An instruction inside a description, a photograph, or a review drops that row. The form stays as the person signed it.
+
+Checkout copies one idea from Stripe’s Agentic Commerce Protocol: pay by a stored reference, so the shopper never holds the card. In that protocol the reference is a shared payment token, good for one seller and one amount. This release does not call Stripe, so it does not mint that token. The vault id is the stand-in. The login cookie is a separate session token. It is not part of the pay call. The two slips are a local signature of the form and the quote, checked before the payer runs. Flow 28 is that handoff.
 
 ---
 
@@ -499,7 +528,7 @@ The same stop happens if the row disappears, or if they confirm an older version
 
 ## 17. Card is declined before any charge
 
-The form lists card, then wallet.
+The form lists card, then wallet. This quote has no card discount, so wallet pays the same cash. A quote that used one is flow 25.
 
 ### Step 1
 
@@ -544,7 +573,7 @@ If the list has no later tender, stop. Nothing is booked.
 
 ### Step 1
 
-- **Situation.** The tender list is only points. Card and wallet are the only mock tenders.
+- **Situation.** The tender list is only points. A charge may use card, hsbc-visa, citi-mastercard, or wallet.
 - **Who.** shopper
 - **To.** mandate
 - **Task.** Ask which rows fit, including the tender rule.
@@ -631,6 +660,129 @@ One live “red balloons” search did this. It ended at a quote. Cash stayed 60
 
 ---
 
+## 25. A seller’s card discount needs a minimum spend
+
+HKTV: merchandise 280, shipping 20, 40 off when merchandise is at least 250 and the tender is card. Taobao: merchandise 250, shipping 20, no rule. The form allows card. This flow is the generic card tender.
+
+### Step 1
+
+- **Situation.** Two balloon rows are still in the race. The form allows card.
+- **Who.** shopper
+- **To.** No other role
+- **Task.** Price each row for card.
+- **Why.** The discount is money off the charge only when that seller’s minimum is met.
+- **Result.** HKTV cash is 260. Taobao cash is 270. HKTV’s seller wins.
+
+### Step 2
+
+- **Situation.** HKTV is the winning seller. Cash would be 260.
+- **Who.** shopper
+- **To.** merchant, then mandate
+- **Task.** Ask HKTV to accept the row, then ask if 260 fits.
+- **Why.** One order keeps one seller. The card cash is what the form must check.
+- **Result.** Quote held at 260 on card. Coupon reserved. The person has not paid.
+
+### Step 3
+
+- **Situation.** Signatures passed. The card is declined before any charge. This quote used a 40 card discount.
+- **Who.** shopper
+- **To.** the person
+- **Task.** Drop the discount, reprice the same row for wallet, and ask them to accept cash 300 or roll back.
+- **Why.** Wallet does not get the card discount. The card price must not be booked on the wallet.
+- **Result.** Nothing is booked at 260. The person is asked. The coupon stays reserved until they accept or decline.
+
+---
+
+## 26. The same rows, wallet only
+
+The same two rows as flow 25. The form allows wallet and not card.
+
+### Step 1
+
+- **Situation.** HKTV’s rule needs a card. The form allows only wallet.
+- **Who.** shopper
+- **To.** No other role
+- **Task.** Price both rows for wallet.
+- **Why.** A discount the person will not pay with cannot choose the winner.
+- **Result.** HKTV stays at 300. Taobao at 270 wins.
+
+---
+
+## 27. The card that earns the discount
+
+Merchandise 280, shipping 20. The form lists hsbc-visa, citi-mastercard, and wallet. HSBC takes 40 off once merchandise is at least 250. Citi takes 10 off at the same minimum. The quote stores the winning tender name and that cash. A later charge copies both, plus the vault id created with the account.
+
+### Step 1
+
+- **Situation.** One balloon row. The form lists hsbc-visa, citi-mastercard, and wallet.
+- **Who.** shopper
+- **To.** No other role
+- **Task.** Price the row for each allowed tender and keep the lowest cash.
+- **Why.** A rule applies only to the tender it names.
+- **Result.** hsbc-visa is 260, citi-mastercard is 290, and wallet is 300. The quote holds 260 on hsbc-visa.
+
+### Step 2
+
+- **Situation.** Signatures passed. hsbc-visa is declined before any charge. This quote used a 40 discount.
+- **Who.** shopper
+- **To.** the person
+- **Task.** Drop hsbc-visa, reprice what remains, and ask them to accept citi-mastercard at 290 or roll back.
+- **Why.** The next card has its own discount. The first card’s 260 must not be booked on it.
+- **Result.** Nothing is booked at 260. The new quote stores tender citi-mastercard and cash 290. The person is asked to accept it. The coupon stays reserved until they accept or decline.
+
+### Step 3
+
+- **Situation.** The person accepts that quote. It already stores tender citi-mastercard and cash 290.
+- **Who.** shopper
+- **To.** payer
+- **Task.** Charge 290 on citi-mastercard, using the tender and cash stored on the quote and the vault id stored with the account.
+- **Why.** The payer books the tender the quote already holds. It does not pick a card, and it does not read a card number.
+- **Result.** One booking for 290 on the citi-mastercard key. The hsbc-visa key is empty.
+
+---
+
+## 28. The account already holds the payment reference
+
+Creating the account writes the vault id and the address id. Starting an attempt writes one idempotency key. A confirmed quote already stores the tender and the cash. The charge copies those four, plus currency and expiry. The red-balloon quote is tender card and cash 60.
+
+### Step 1
+
+- **Situation.** The account exists. It holds `vault_<id>`, `address_<id>`, and `did:mock:<user id>`. No card form was shown.
+- **Who.** shopper
+- **To.** No other role
+- **Task.** Keep those three for a later charge. Leave the card number uncollected.
+- **Why.** The vault id is the stored payment reference. The address id is the stored delivery reference. The `did` is what the intent slip is signed against.
+- **Result.** The account page can show the vault id. Checkout does not ask the person to type it.
+
+### Step 2
+
+- **Situation.** The quote is confirmed. It stores tender card and cash 60. The auditor has passed both slips.
+- **Who.** shopper
+- **To.** payer
+- **Task.** Send seven fields: the account’s vault id, the account’s address id, cash 60, currency HKD, tender card, the quote’s expiry, and this attempt’s idempotency key.
+- **Why.** That list is the whole pay call. The payer accepts a vault id that starts with `vault_` and an address id that starts with `address_`. Any other field stops the call.
+- **Result.** One booking for 60 on the raw key. The vault id is recorded only as the reference that was allowed. It is not spent, and it is not replaced by a payment token.
+
+### Step 3
+
+- **Situation.** That booking exists. The same attempt sends the same key again, with the same 60.
+- **Who.** shopper
+- **To.** payer
+- **Task.** Retry the original idempotency key.
+- **Why.** The key finds the receipt. A second call with the same user, the same cash, the same request, the same goal, and the same skus reconciles. A different cash stops.
+- **Result.** The existing receipt is returned. Still one booking.
+
+### Step 4
+
+- **Situation.** The quote’s tender is a named card or wallet, such as citi-mastercard.
+- **Who.** payer
+- **To.** No other role
+- **Task.** Book `citi-mastercard:` plus the same attempt key. Wallet books `wallet:` plus that key.
+- **Why.** Each tender keeps its own receipt, so a declined card and the next card cannot share one line. The generic card keeps the raw key. The vault id stays the account’s reference on every tender.
+- **Result.** One line for that tender. The same vault id is sent again. No new card data is read.
+
+---
+
 # Scores, money, and limits
 
 All amounts below are Hong Kong dollars. Arithmetic is done in cents, then shown as dollars.
@@ -640,10 +792,14 @@ All amounts below are Hong Kong dollars. Arithmetic is done in cents, then shown
 For one row:
 
 ```
-line         = shelf × quantity
-merchandise  = line − coupon, but never below 0
-cash         = merchandise + shipping
+line            = shelf × quantity
+merchandise     = line − coupon, but never below 0
+card discount   = the published off on the rule that names this tender,
+                  only when merchandise ≥ that rule’s minimum
+cash            = merchandise − card discount + shipping
 ```
+
+Each rule names one tender. Only that tender receives the off. A published discount larger than the merchandise does not apply, so cash does not fall below zero.
 
 Worked example from the money rule:
 
@@ -653,11 +809,24 @@ Worked example from the money rule:
 | Coupon 80 | merchandise = 320 |
 | Shipping 30 | cash = 350 |
 
-The red-balloon quote in the demo is the same rule at a smaller size: shelf 50 + shipping 10 = cash 60.
+The red-balloon quote in the demo is the same rule at a smaller size: shelf 50 + shipping 10 = cash 60. That row has no card rule, so the discount is 0.
+
+A card rule, rewards aside:
+
+| Piece | Amount |
+| --- | --- |
+| HKTV merchandise 280, shipping 20, card, minimum 250, off 40 | cash = 260 |
+| Taobao merchandise 250, shipping 20, no rule | cash = 270 |
+| The same HKTV row on wallet | cash = 300 |
+| The same merchandise on hsbc-visa, 40 off | cash = 260 |
+| The same merchandise on citi-mastercard, 10 off | cash = 290 |
+| The same merchandise on wallet | cash = 300 |
+
+With card allowed, HKTV at 260 ranks above Taobao at 270. With wallet only, Taobao at 270 ranks above HKTV at 300. When the form lists hsbc-visa, citi-mastercard, and wallet, hsbc-visa at 260 ranks first.
 
 Missing shipping is an error. It is not treated as 0.
 
-The per-item limit looks at **line**, before the coupon. The per-order limit, the goal’s share, and the 168-hour limit look at **cash**.
+The per-item limit looks at **line**, before the coupon and before the card discount. The per-order limit, the goal’s share, and the 168-hour limit look at **cash** after the card discount.
 
 ## What a gift does, and what it does not
 
@@ -705,7 +874,7 @@ Default weights, used unless the sentence asks for cheapest:
 | Purchase count | 0.10 |
 | Bought this sku before | 0.15 |
 
-If the sentence says cheapest, lowest cash, 最便宜, or 最低现金, the weights become 0.20, 0.60, 0.10, 0.05, 0.05. Weights do not have to add up to 1. A negative or non-numeric weight stops the attempt. If the sentence says cheapest and the form also carries a different explicit weight vector, the person must confirm before ranking continues.
+The form’s payment objective sets the vector. Balanced uses the table above. Lowest cash uses 0.20, 0.60, 0.10, 0.05, 0.05. A sentence that says cheapest, lowest cash, 最便宜, or 最低现金, while the form is balanced, asks the person. After they confirm, the form’s vector remains. Weights do not have to add up to 1. A negative or non-numeric weight stops the attempt. The reasons are in [decisions.md](decisions.md).
 
 For each row, using the rows still in the race:
 
@@ -729,11 +898,11 @@ A quote passes only when all of these are true:
 
 - The form is valid, not revoked, and not expired.
 - The quote is younger than 120 seconds.
-- The tender is card or wallet, and the form allows it. An empty tender list means card. Points fails.
+- The tender is card, hsbc-visa, citi-mastercard, or wallet, and the form allows it. An empty tender list means card. Points fails.
 - The seller and the category are not denied. An empty allow list means every seller and both categories, except the deny list.
 - The pre-coupon line is within 250 per item.
 - Cash is within 400 per order, within this goal’s remaining share, and within the remaining 168-hour budget.
-- Cash equals merchandise + shipping.
+- Cash equals merchandise − card discount + shipping. With no card rule the discount is 0, so this is merchandise + shipping.
 
 Search may run for at most 15 seconds, or less if the form sets a shorter cap. An open question or a held quote lasts 120 seconds. The same sku bought in the past 72 hours asks the person before pay.
 
@@ -741,4 +910,4 @@ The 168-hour total is the sum of booked cash in that window. Refunded receipts s
 
 ## What a model is not allowed to change
 
-The model may draft the parse, add one explanation, and propose the next legal message. The tool result wins on cash, shipping, status, the coupon, the sku, the signature, and the booking.
+The model may draft the parse, add one explanation, and propose the next legal message. The tool result wins on cash, shipping, status, the coupon, the sku, the signature, the booking, the card discount, and the minimum.

@@ -98,6 +98,36 @@ export async function demoText() {
   parts.push(block("card declined, wallet books", "Card fails before any charge. The same payer books wallet: once, for the same cash.", walletAttempt));
   wallet.database.close();
 
+  const card = open();
+  card.input.mandate = { ...card.input.mandate, perItem: 500, tenders: ["card", "wallet"] };
+  card.input.shares = { balloons: 400 };
+  card.input.budget = 400;
+  const cardBase = rawOffers.find(offer => offer.category_id === "balloons" && offer.appearance === "red")!;
+  const cardRow = (sku_id: string, merchant_id: string, platform_id: string, shelf: number, cardRule?: Offer["cardRule"]): Offer => ({
+    ...cardBase, sku_id, merchant_id, platform_id, shelf, human_price: shelf, agent_price: shelf, coupon: 0, shipping: 20,
+    rating: 5, purchase_count: 10, reward: { gift: 0, rate: 0, terms: "none" }, cardRule,
+  });
+  const cardCatalog = [
+    cardRow("hktv-card", "hktv-shop", "hktvmall", 280, { tender: "card", minMerchandise: 250, off: 40 }),
+    cardRow("taobao-plain", "taobao-shop", "taobao", 250),
+  ];
+  const cardAttempt = await runAttempt(card.input, { ...card.ctx, catalog: cardCatalog, paySimulation: "card_declined" });
+  if (cardAttempt.status === "quote") await advanceAttempt(cardAttempt, { type: "confirm", version: cardAttempt.quoteVersion }, { ...card.ctx, catalog: cardCatalog, paySimulation: "card_declined" });
+  parts.push(block("card discount, then wallet asks", "HKTV takes 40 off a card once merchandise is at least 250, so cash is 260 and that seller wins. The card is declined before charge. Wallet does not get the discount, so the person is asked at cash 300. Nothing is booked at 260.", cardAttempt));
+  card.database.close();
+
+  const named = open();
+  named.input.mandate = { ...named.input.mandate, perItem: 500, tenders: ["hsbc-visa", "citi-mastercard", "wallet"] };
+  named.input.shares = { balloons: 400 };
+  named.input.budget = 400;
+  const namedOffer: Offer = { ...cardBase, sku_id: "named-cards", merchant_id: "hktv-shop", platform_id: "hktvmall", shelf: 280, human_price: 280, agent_price: 280, coupon: 0, shipping: 20,
+    rating: 5, purchase_count: 10, reward: { gift: 0, rate: 0, terms: "none" },
+    cardRules: [{ tender: "hsbc-visa", minMerchandise: 250, off: 40 }, { tender: "citi-mastercard", minMerchandise: 250, off: 10 }] };
+  const namedAttempt = await runAttempt(named.input, { ...named.ctx, catalog: [namedOffer], paySimulation: "card_declined" });
+  if (namedAttempt.status === "quote") await advanceAttempt(namedAttempt, { type: "confirm", version: namedAttempt.quoteVersion }, { ...named.ctx, catalog: [namedOffer], paySimulation: "card_declined" });
+  parts.push(block("named card, then the next card asks", "The form lists hsbc-visa, citi-mastercard, and wallet. HSBC takes 40 off, so the quote holds 260. That card is declined before charge. Citi’s own 10 off makes cash 290, so the person is asked. Nothing is booked at 260.", namedAttempt));
+  named.database.close();
+
   const auto = open();
   auto.input.mandate = { ...auto.input.mandate, confirmMode: "auto" };
   const autoAttempt = await runAttempt(auto.input, auto.ctx);
@@ -119,7 +149,7 @@ export async function demoText() {
   const points = open();
   points.input.mandate = { ...points.input.mandate, tenders: ["points"] };
   const pointsAttempt = await runAttempt(points.input, points.ctx);
-  parts.push(block("points is not a tender", "The form lists only points. Every catalogue row fails that check. Card and wallet are the only mock tenders. Nothing is booked.", pointsAttempt));
+  parts.push(block("points is not a tender", "The form lists only points. Every catalogue row fails that check. Points is not a payable tender. Nothing is booked.", pointsAttempt));
   points.database.close();
 
   return parts.join("\n");

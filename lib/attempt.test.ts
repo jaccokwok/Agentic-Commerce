@@ -8,7 +8,7 @@ import { formatRow } from "@/lib/trace";
 import { defaultMandate } from "@/lib/mandate";
 import { parseIntent } from "@/lib/intent";
 import { rawOffers, type Offer } from "@/lib/catalog";
-import { spent7d } from "@/lib/ledger";
+import { receipt, spent7d } from "@/lib/ledger";
 
 const databases: DatabaseSync[] = [];
 function setup() {
@@ -32,6 +32,10 @@ test("one trace covers every step; selecting never pays and manual confirm books
   const rules = attempt.trace.rows.map(r => r.ruleId);
   expect(rules.indexOf("credentials_ok")).toBeGreaterThan(-1);
   expect(rules.indexOf("credentials_ok")).toBeLessThan(rules.indexOf("mock_refs_idempotency"));
+  const paid = attempt.trace.rows.find(r => r.ruleId === "mock_refs_idempotency" && r.from === "payer");
+  expect(paid?.numbers.tender).toBe("card");
+  expect(paid?.numbers.idempotencyKey).toBe(attempt.idempotencyKey);
+  expect(paid?.numbers.cash).toBe(attempt.quote?.cashTotal);
 });
 test("tie and repeated SKU require clarification, expiry and rollback release coupons", async () => {
   const { ctx, input } = setup();
@@ -171,6 +175,11 @@ test("after rank the shopper's next message is negotiate for the winning row", a
   expect(next?.ruleId).toBe("negotiate");
   expect(next?.numbers.platform_id).toBe(attempt.offers[0].offer.platform_id);
   expect(attempt.status).toBe("quote");
+  const scored = attempt.trace.rows.filter(r => r.ruleId === "scored");
+  expect(scored.length).toBeGreaterThan(0);
+  expect(scored[0].numbers).toMatchObject({ sku: expect.any(String), cash: expect.any(Number), tender: "card", score: expect.any(Number) });
+  expect(String(scored[0].numbers.parts)).toContain("relevance");
+  expect(formatRow(attempt.trace.rows.find(r => r.ruleId === "weights")!)).toContain("relevance 0.35");
   const tie = await runAttempt({ ...input, merchantId: "tie-shop" }, ctx);
   const tieRank = tie.trace.rows.findIndex(r => r.step === "rank");
   expect(tie.issue).toBe("tie");
@@ -360,6 +369,51 @@ test("a shopper proposal is delivered only when it matches the tool message", as
     delete process.env.SCOUT_LLM;
     delete process.env.QWEN_API_KEY;
   }
+});
+test("a declined card discount asks for the wallet price and does not book the card cash", async () => {
+  const { ctx, input } = setup();
+  const base = rawOffers.find(o => o.category_id === "balloons" && o.appearance === "red");
+  if (!base) throw new Error("missing balloon");
+  const row = (sku_id: string, merchant_id: string, platform_id: string, shelf: number, cardRule?: Offer["cardRule"]): Offer => ({
+    ...base, sku_id, merchant_id, platform_id, shelf, human_price: shelf, agent_price: shelf, coupon: 0, shipping: 20,
+    rating: 5, purchase_count: 10, reward: { gift: 0, rate: 0, terms: "none" }, cardRule,
+  });
+  const catalog = [
+    row("hktv-card", "hktv-shop", "hktvmall", 280, { tender: "card", minMerchandise: 250, off: 40 }),
+    row("taobao-plain", "taobao-shop", "taobao", 250),
+  ];
+  const mandate = { ...input.mandate, perItem: 500, tenders: ["card", "wallet"] };
+  const attempt = await runAttempt({ ...input, shares: { balloons: 400 }, budget: 400, mandate }, { ...ctx, catalog, paySimulation: "card_declined" });
+  expect(attempt.quote).toMatchObject({ cashTotal: 260, cardOff: 40, tender: "card" });
+  await advanceAttempt(attempt, { type: "confirm", version: attempt.quoteVersion }, { ...ctx, catalog, paySimulation: "card_declined" });
+  expect(attempt.status).toBe("clarify");
+  expect(attempt.quote).toMatchObject({ cashTotal: 300, cardOff: 0, tender: "wallet" });
+  expect(spent7d(1, 1000, ctx.database)).toBe(0);
+  await advanceAttempt(attempt, { type: "confirm", version: attempt.quoteVersion }, { ...ctx, catalog, paySimulation: "card_declined" });
+  expect(attempt.status).toBe("paid");
+  expect(spent7d(1, 1000, ctx.database)).toBe(300);
+  expect(receipt(attempt.idempotencyKey, ctx.database)).toBeNull();
+  expect(receipt(`wallet:${attempt.idempotencyKey}`, ctx.database)?.cash_cents).toBe(30000);
+});
+test("a declined named card asks for the next card and books only that key", async () => {
+  const { ctx, input } = setup();
+  const base = rawOffers.find(o => o.category_id === "balloons" && o.appearance === "red");
+  if (!base) throw new Error("missing balloon");
+  const offer: Offer = { ...base, sku_id: "named-cards", merchant_id: "hktv-shop", platform_id: "hktvmall", shelf: 280, human_price: 280, agent_price: 280, coupon: 0, shipping: 20,
+    rating: 5, purchase_count: 10, reward: { gift: 0, rate: 0, terms: "none" },
+    cardRules: [{ tender: "hsbc-visa", minMerchandise: 250, off: 40 }, { tender: "citi-mastercard", minMerchandise: 250, off: 10 }] };
+  const mandate = { ...input.mandate, perItem: 500, tenders: ["hsbc-visa", "citi-mastercard", "wallet"] };
+  const attempt = await runAttempt({ ...input, shares: { balloons: 400 }, budget: 400, mandate }, { ...ctx, catalog: [offer], paySimulation: "card_declined" });
+  expect(attempt.quote).toMatchObject({ cashTotal: 260, tender: "hsbc-visa", cardOff: 40 });
+  await advanceAttempt(attempt, { type: "confirm", version: attempt.quoteVersion }, { ...ctx, catalog: [offer], paySimulation: "card_declined" });
+  expect(attempt.status).toBe("clarify");
+  expect(attempt.quote).toMatchObject({ cashTotal: 290, tender: "citi-mastercard", cardOff: 10 });
+  expect(spent7d(1, 1000, ctx.database)).toBe(0);
+  await advanceAttempt(attempt, { type: "confirm", version: attempt.quoteVersion }, { ...ctx, catalog: [offer], paySimulation: "card_declined" });
+  expect(attempt.status).toBe("paid");
+  expect(spent7d(1, 1000, ctx.database)).toBe(290);
+  expect(receipt(`hsbc-visa:${attempt.idempotencyKey}`, ctx.database)).toBeNull();
+  expect(receipt(`citi-mastercard:${attempt.idempotencyKey}`, ctx.database)?.cash_cents).toBe(29000);
 });
 test("a flipped payment signature does not book", async () => {
   const { ctx, input } = setup();

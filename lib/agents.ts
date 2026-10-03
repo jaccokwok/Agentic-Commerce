@@ -20,6 +20,8 @@ async function finish(message: AgentMessage, type: string, body: Record<string, 
     const value = body[key];
     if (value === null || typeof value === "number" || typeof value === "string" || typeof value === "boolean") facts[key] = value;
   }
+  if (typeof body.cardOff === "number" && body.cardOff > 0) facts.cardOff = body.cardOff;
+  if (typeof body.tender === "string" && body.tender) facts.tender = body.tender;
   const explanation = await speak(message.to, facts);
   return reply(message, type, explanation ? { ...body, explanation } : body);
 }
@@ -68,7 +70,8 @@ export const mandateAgent: Agent = {
     }
     const { quote, mandate, share, rolling, now } = message.body as { quote: Quote; mandate: Mandate; share: number; rolling: number; now: number };
     const gate = checkQuote(quote, mandate, share, rolling, now);
-    return finish(message, "cash_gate", { status: gate.status, reason: gate.reason, cash: quote.cashTotal });
+      const card = quote.cardOff > 0 ? { cardOff: quote.cardOff, tender: quote.tender } : {};
+      return finish(message, "cash_gate", { status: gate.status, reason: gate.reason, cash: quote.cashTotal, ...card });
   },
 };
 
@@ -144,7 +147,8 @@ function gateTurn(cursor: OfferCursor, priced: Offer, facts: { mandate: Mandate;
   cursor.phase = "gate";
   cursor.priced = priced;
   cursor.quote = quote;
-  return { kind: "send", step: "quote", to: "mandate", type: "check_cash", quote, body: { quote, mandate: facts.mandate, share: facts.share, rolling: facts.rolling, now: facts.now, cash: quote.cashTotal } };
+  const card = quote.cardOff > 0 ? { cardOff: quote.cardOff, tender: quote.tender } : {};
+  return { kind: "send", step: "quote", to: "mandate", type: "check_cash", quote, body: { quote, mandate: facts.mandate, share: facts.share, rolling: facts.rolling, now: facts.now, cash: quote.cashTotal, ...card } };
 }
 
 export function shopperTurn(cursor: OfferCursor, last: AgentMessage | null, facts: { mandate: Mandate; qty: number; share: number; rolling: number; now: number }): ShopperTurn {
@@ -178,7 +182,7 @@ function payerAgent(database: DatabaseSync): Agent {
     async handle(message) {
       const { input, context, ruleId } = message.body as { input: PayInput; context: PayContext; ruleId: string };
       const result = mockPay(input, context, database);
-      return finish(message, ruleId, { status: result.status, reason: result.reason, cash: input.amount });
+      return finish(message, ruleId, { status: result.status, reason: result.reason, cash: input.amount, tender: input.tender, idempotencyKey: input.idempotencyKey });
     },
   };
 }

@@ -32,4 +32,19 @@ test("cash cannot exceed order, share or remaining budget; per-item checks pre-c
   expect(checkQuote(wallet, { ...m, tenders: ["wallet"] }, 500, 500, 1000).status).toBe("ready");
   expect(allowedTenders({ ...m, tenders: [] })).toEqual(["card"]);
   expect(allowedTenders({ ...m, tenders: ["points"] })).toEqual([]);
+  expect(allowedTenders({ ...m, tenders: ["hsbc-visa", "citi-mastercard", "wallet"] })).toEqual(["hsbc-visa", "citi-mastercard", "wallet"]);
+  const named = { ...offer, shelf: 280, human_price: 280, agent_price: 280, coupon: 0, shipping: 20, cardRules: [
+    { tender: "hsbc-visa" as const, minMerchandise: 250, off: 40 },
+    { tender: "citi-mastercard" as const, minMerchandise: 250, off: 10 },
+  ] };
+  const namedQuote = createQuote(named, 1, { ...m, tenders: ["hsbc-visa", "citi-mastercard", "wallet"] }, 1000);
+  expect(namedQuote).toMatchObject({ tender: "hsbc-visa", cardOff: 40, cardMinimum: 250, cashTotal: 260 });
+  expect(checkQuote(namedQuote, { ...m, tenders: ["hsbc-visa", "citi-mastercard", "wallet"] }, 500, 500, 1000).status).toBe("ready");
+  const cardOffer = { ...offer, shelf: 280, human_price: 280, agent_price: 280, coupon: 0, shipping: 20, cardRule: { tender: "card" as const, minMerchandise: 250, off: 40 } };
+  const cardQuote = createQuote(cardOffer, 1, m, 1000);
+  expect(cardQuote).toMatchObject({ tender: "card", merchandise: 280, cardOff: 40, cardMinimum: 250, cashTotal: 260 });
+  expect(checkQuote(cardQuote, m, 500, 500, 1000).status).toBe("ready");
+  expect(checkQuote({ ...cardQuote, cashTotal: 300 }, m, 500, 500, 1000).status).toBe("terminate");
+  expect(quoteChanged(cardQuote, { ...cardQuote, tender: "wallet", cardOff: 0, cashTotal: 300 })).toBe(true);
+  expect(createQuote(cardOffer, 1, { ...m, tenders: ["wallet"] }, 1000)).toMatchObject({ tender: "wallet", cardOff: 0, cashTotal: 300 });
 });

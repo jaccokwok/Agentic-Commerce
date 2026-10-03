@@ -43,3 +43,6 @@ next-env.d.ts
 # local sqlite data (login system)
 /data
 
+# runtime decision log
+/logs
+
