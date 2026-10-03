@@ -8,9 +8,10 @@ import { offerMoney } from "@/lib/rank";
 import { book, refund, spent7d } from "@/lib/ledger";
 import { runAttempt, advanceAttempt, type AttemptInput, type AttemptContext } from "@/lib/attempt";
 
-export function runHarness() {
+export async function runHarness() {
   let overspends = 0;
-  const outcomes = scenarios.map(scenario => {
+  const outcomes = [];
+  for (const scenario of scenarios) {
     const database = new DatabaseSync(":memory:");
     initializeSchema(database);
     const now = 2000000000;
@@ -37,12 +38,12 @@ export function runHarness() {
       if (scenario.name === "timeout_after_pay") ctx.paySimulation = "timeout_after";
       if (scenario.name === "timeout_before_pay") ctx.paySimulation = "timeout_before";
       const before = spent7d(1, now, database);
-      const attempt = runAttempt(input, ctx);
-      if (scenario.name === "clarify_timeout") advanceAttempt(attempt, { type: "tick" }, { ...ctx, now: () => now + 120000 });
+      const attempt = await runAttempt(input, ctx);
+      if (scenario.name === "clarify_timeout") await advanceAttempt(attempt, { type: "tick" }, { ...ctx, now: () => now + 120000 });
       else if (scenario.name === "price_rollback") {
-        advanceAttempt(attempt, { type: "price_change", cashTotal: 360 }, ctx);
-        advanceAttempt(attempt, { type: "decline" }, ctx);
-      } else if (attempt.status === "quote") advanceAttempt(attempt, { type: "confirm", version: attempt.quoteVersion }, ctx);
+        await advanceAttempt(attempt, { type: "price_change", cashTotal: 360 }, ctx);
+        await advanceAttempt(attempt, { type: "decline" }, ctx);
+      } else if (attempt.status === "quote") await advanceAttempt(attempt, { type: "confirm", version: attempt.quoteVersion }, ctx);
       const booked = database.prepare("SELECT cash_cents FROM orders WHERE request_id = ?").all(input.requestId);
       for (const row of booked) {
         const q = attempt.quote;
@@ -52,8 +53,8 @@ export function runHarness() {
         if (!q || !offer || offer.shipping === undefined || cash !== expectedCash || cash !== q.cashTotal || q.items.some(i => i.lineTotal > input.mandate.perItem) ||
           cash > input.mandate.perOrder || cash > (input.shares[input.goalId] ?? 0) || before + cash > input.mandate.rolling7d) overspends += 1;
       }
-      return { name: scenario.name, expected: scenario.expected, status: attempt.status, traceId: attempt.trace.id, coupon: attempt.coupon, reason: attempt.reason, rules: attempt.trace.rows.map(row => row.ruleId) };
+      outcomes.push({ name: scenario.name, expected: scenario.expected, status: attempt.status, traceId: attempt.trace.id, coupon: attempt.coupon, reason: attempt.reason, rules: attempt.trace.rows.map(row => row.ruleId), rows: attempt.trace.rows });
     } finally { database.close(); }
-  });
+  }
   return { overspends, outcomes };
 }

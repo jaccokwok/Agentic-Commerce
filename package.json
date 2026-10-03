@@ -9,6 +9,8 @@
     "start": "node --experimental-sqlite .next/standalone/server.js",
     "lint": "eslint",
     "test": "node --experimental-sqlite node_modules/vitest/vitest.mjs run",
+    "demo": "SCOUT_DEMO=1 node --experimental-sqlite node_modules/vitest/vitest.mjs run lib/demo.test.ts",
+    "live": "SCOUT_LIVE=1 node --env-file=.env.local --experimental-sqlite node_modules/vitest/vitest.mjs run lib/live-search.test.ts",
     "test:coverage": "node --experimental-sqlite node_modules/vitest/vitest.mjs run --coverage"
   },
   "dependencies": {

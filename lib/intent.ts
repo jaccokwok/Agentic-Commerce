@@ -2,6 +2,29 @@ import { hasInjection } from "@/lib/catalog";
 
 export type Goal = { id: string; categoryId: string; label: string; qty: number | null; brand: string | null; appearance: string | null };
 export type Intent = { status: "ready" | "clarify" | "terminate"; goals: Goal[]; budgetHint: number | null; reason: string };
+export function intentFromDraft(raw: unknown): Intent {
+  const rejected = { goals: [] as Goal[], budgetHint: null as number | null, status: "clarify" as const, reason: "Model draft was not catalogue JSON" };
+  let value = raw;
+  if (typeof raw === "string") {
+    try { value = JSON.parse(raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "")); }
+    catch { return rejected; }
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value)) return rejected;
+  const body = value as Record<string, unknown>;
+  const listed = Array.isArray(body.goals) ? body.goals : null;
+  const ids = listed?.filter((item): item is "snacks" | "balloons" => item === "snacks" || item === "balloons") ?? [];
+  if (!listed || !ids.length || ids.length !== listed.length) return rejected;
+  if (hasInjection(`${body.brand ?? ""} ${body.appearance ?? ""}`)) return { ...rejected, status: "terminate", reason: "User input tries to override the mandate" };
+  if (!(body.brand == null || typeof body.brand === "string")) return rejected;
+  if (!(body.appearance == null || body.appearance === "red" || body.appearance === "blue")) return rejected;
+  if (!(body.qty == null || (typeof body.qty === "number" && Number.isSafeInteger(body.qty)))) return rejected;
+  if (!(body.budgetHint == null || (typeof body.budgetHint === "number" && Number.isFinite(body.budgetHint)))) return rejected;
+  const appearance = body.appearance === "red" || body.appearance === "blue" ? body.appearance : null;
+  return { status: "ready", budgetHint: typeof body.budgetHint === "number" ? body.budgetHint : null,
+    goals: ids.map(id => ({ id, categoryId: id, label: id === "snacks" ? "Snacks" : "Balloons", qty: typeof body.qty === "number" ? body.qty : null, brand: typeof body.brand === "string" ? body.brand : null, appearance: id === "balloons" ? appearance : null })),
+    reason: "Editable list only. Set quantities and shares before search." };
+}
+
 export function parseIntent(text: string): Intent {
   const base = { goals: [] as Goal[], budgetHint: null as number | null };
   if (typeof text !== "string" || !text.trim() || text.length > 2000) return { ...base, status: "terminate", reason: "Enter 1–2000 characters" };

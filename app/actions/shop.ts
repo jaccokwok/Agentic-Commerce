@@ -7,10 +7,10 @@ import type { AttemptEvent } from "@/lib/attempt";
 import { redirect } from "next/navigation";
 import { receipt, refund, spent7d } from "@/lib/ledger";
 
-async function authenticated<T>(run: (userId: number) => T) {
+async function authenticated<T>(run: (userId: number) => T | Promise<T>) {
   const user = await getSessionUser();
   if (!user) return { error: "Sign in to save your mandate and use mock checkout", data: null };
-  try { return { error: null, data: run(user.id) }; }
+  try { return { error: null, data: await run(user.id) }; }
   catch (error) { return { error: error instanceof Error ? error.message : "Internal server error; no further purchasing action", data: null }; }
 }
 export async function mandateAction(mandate: Mandate) {

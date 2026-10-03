@@ -1,8 +1,8 @@
 import { expect, test } from "vitest";
 import { runHarness } from "@/lib/harness";
 
-test("replays happy and abnormal flows and reports zero overspends", () => {
-  const result = runHarness();
+test("replays happy and abnormal flows and reports zero overspends", async () => {
+  const result = await runHarness();
   console.log(`Replay scenarios: ${result.outcomes.length}; overspend count: ${result.overspends}`);
   expect(result.outcomes.length).toBeGreaterThanOrEqual(11);
   for (const outcome of result.outcomes) expect(outcome.status, outcome.name).toBe(outcome.expected);

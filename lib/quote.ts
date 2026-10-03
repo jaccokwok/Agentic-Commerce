@@ -35,6 +35,7 @@ export function checkQuote(q: Quote, m: Mandate, shareRemaining: number, rolling
   const mandate = checkMandate(m, now);
   if (mandate.status !== "ready") return mandate;
   if (now >= q.expiresAt) return { status: "terminate", reason: "Quote expired" };
+  if (q.tender !== "card" && q.tender !== "wallet") return { status: "terminate", reason: "Tender is not an allowed mock card or wallet" };
   if (!allowedTenders(m).includes(q.tender)) return { status: "terminate", reason: "Tender is not an allowed mock card or wallet" };
   if (!allows(m, q.merchantId, q.categoryId)) return { status: "terminate", reason: "Merchant or category is disallowed" };
   if (q.items.some(i => i.lineTotal > m.perItem) || q.cashTotal > m.perOrder || q.cashTotal > shareRemaining || q.cashTotal > rollingRemaining) {

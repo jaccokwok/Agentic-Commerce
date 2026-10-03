@@ -10,26 +10,26 @@ const databases: DatabaseSync[] = [];
 async function setup() {
   const db = new DatabaseSync(":memory:"); initializeSchema(db); databases.push(db);
   const user = await createUser("shop@example.com", "Shop", "test", db);
-  saveMandate(user.id, defaultMandate(), db);
+  await saveMandate(user.id, defaultMandate(), db);
   return { db, user };
 }
 afterEach(() => databases.splice(0).forEach(d => d.close()));
 test("server owns mandate, quote and payment refs; other users cannot access requests", async () => {
   const { db, user } = await setup();
   const req = createRequest(user.id, { text: "balloons", goals: [{ ...parseIntent("balloons").goals[0], qty: 1 }], shares: { balloons: 350 }, budget: 350, partialAccepted: false }, 1000, db);
-  expect(() => searchRequest(999, req.id, "balloons", undefined, false, 1000, db)).toThrow();
-  const a = searchRequest(user.id, req.id, "balloons", undefined, false, 1000, db);
-  expect(() => actOnAttempt(999, a.id, { type: "confirm", version: a.quoteVersion }, 1000, db)).toThrow();
-  expect(actOnAttempt(user.id, a.id, { type: "confirm", version: a.quoteVersion }, 1000, db).status).toBe("paid");
-  expect(actOnAttempt(user.id, a.id, { type: "confirm", version: a.quoteVersion }, 1000, db).status).toBe("paid");
+  await expect(searchRequest(999, req.id, "balloons", undefined, false, 1000, db)).rejects.toThrow();
+  const a = await searchRequest(user.id, req.id, "balloons", undefined, false, 1000, db);
+  await expect(actOnAttempt(999, a.id, { type: "confirm", version: a.quoteVersion }, 1000, db)).rejects.toThrow();
+  expect((await actOnAttempt(user.id, a.id, { type: "confirm", version: a.quoteVersion }, 1000, db)).status).toBe("paid");
+  expect((await actOnAttempt(user.id, a.id, { type: "confirm", version: a.quoteVersion }, 1000, db)).status).toBe("paid");
   expect(spent7d(user.id, 1000, db)).toBe(a.quote!.cashTotal);
 });
 test("mandate changes or revocation cancel outstanding coupons", async () => {
   const { db, user } = await setup();
   const req = createRequest(user.id, { text: "snacks", goals: [{ ...parseIntent("snacks").goals[0], qty: 1 }], shares: { snacks: 350 }, budget: 350, partialAccepted: false }, 1000, db);
-  const a = searchRequest(user.id, req.id, "snacks", undefined, false, 1000, db);
-  saveMandate(user.id, { ...defaultMandate(), revoked: true }, db);
-  const ended = actOnAttempt(user.id, a.id, { type: "confirm", version: a.quoteVersion }, 1000, db);
+  const a = await searchRequest(user.id, req.id, "snacks", undefined, false, 1000, db);
+  await saveMandate(user.id, { ...defaultMandate(), revoked: true }, db);
+  const ended = await actOnAttempt(user.id, a.id, { type: "confirm", version: a.quoteVersion }, 1000, db);
   expect(ended.status).toBe("terminate");
   expect(ended.coupon).toBe("unused");
   expect(spent7d(user.id, 1000, db)).toBe(0);
@@ -38,24 +38,24 @@ test("split request completes both goals from fixed shares without borrowing", a
   const { db, user } = await setup();
   const req = createRequest(user.id, { text: "party items budget 350", goals: parseIntent("party items").goals.map(g => ({ ...g, qty: 1 })), shares: { snacks: 175, balloons: 175 }, budget: 350, partialAccepted: true }, 1000, db);
   for (const goalId of ["snacks", "balloons"]) {
-    const a = searchRequest(user.id, req.id, goalId, undefined, false, 1000, db);
+    const a = await searchRequest(user.id, req.id, goalId, undefined, false, 1000, db);
     expect(a.status).toBe("quote");
-    expect(actOnAttempt(user.id, a.id, { type: "confirm", version: a.quoteVersion }, 1000, db).status).toBe("paid");
+    expect((await actOnAttempt(user.id, a.id, { type: "confirm", version: a.quoteVersion }, 1000, db)).status).toBe("paid");
   }
 });
 test("two prepared payments cannot spend the same goal share twice", async () => {
   const { db, user } = await setup();
   const req = createRequest(user.id, { text: "balloons", goals: [{ ...parseIntent("balloons").goals[0], qty: 1 }], shares: { balloons: 100 }, budget: 100, partialAccepted: false }, 1000, db);
-  const a = searchRequest(user.id, req.id, "balloons", "party-shop", false, 1000, db);
-  const b = searchRequest(user.id, req.id, "balloons", "party-shop", false, 1000, db);
-  expect(actOnAttempt(user.id, a.id, { type: "confirm", version: a.quoteVersion }, 1000, db).status).toBe("paid");
-  expect(actOnAttempt(user.id, b.id, { type: "confirm", version: b.quoteVersion }, 1000, db).status).toBe("terminate");
+  const a = await searchRequest(user.id, req.id, "balloons", "party-shop", false, 1000, db);
+  const b = await searchRequest(user.id, req.id, "balloons", "party-shop", false, 1000, db);
+  expect((await actOnAttempt(user.id, a.id, { type: "confirm", version: a.quoteVersion }, 1000, db)).status).toBe("paid");
+  expect((await actOnAttempt(user.id, b.id, { type: "confirm", version: b.quoteVersion }, 1000, db)).status).toBe("terminate");
   expect(spent7d(user.id, 1000, db)).toBe(60);
 });
 test("automatic mode uses the server-stored authorization and stored payment refs", async () => {
   const { db, user } = await setup();
-  saveMandate(user.id, { ...defaultMandate(), confirmMode: "auto" }, db);
+  await saveMandate(user.id, { ...defaultMandate(), confirmMode: "auto" }, db);
   const req = createRequest(user.id, { text: "balloons", goals: [{ ...parseIntent("balloons").goals[0], qty: 1 }], shares: { balloons: 350 }, budget: 350, partialAccepted: false }, 1000, db);
-  expect(searchRequest(user.id, req.id, "balloons", "party-shop", false, 1000, db).status).toBe("paid");
+  expect((await searchRequest(user.id, req.id, "balloons", "party-shop", false, 1000, db)).status).toBe("paid");
   expect(spent7d(user.id, 1000, db)).toBe(60);
 });

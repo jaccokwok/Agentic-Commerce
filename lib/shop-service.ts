@@ -25,7 +25,7 @@ function storeAttempt(a: Attempt, db: DatabaseSync) {
   db.prepare("INSERT INTO attempts (id, user_id, payload) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload").run(a.id, a.input.userId, JSON.stringify(a));
   return a;
 }
-export function saveMandate(userId: number, mandate: Mandate, db = getDb()) {
+export async function saveMandate(userId: number, mandate: Mandate, db = getDb()) {
   const user = userRecord(userId, db);
   const errors = validateMandate(mandate);
   if (errors.length) throw new Error(errors.join("; "));
@@ -34,7 +34,7 @@ export function saveMandate(userId: number, mandate: Mandate, db = getDb()) {
     const attempt = JSON.parse(String(row.payload)) as Attempt;
     if (!["paid", "terminate"].includes(attempt.status)) {
       attempt.input.mandate.revoked = true;
-      storeAttempt(advanceAttempt(attempt, { type: "cancel" }, { database: db, now: () => Date.now(), vaultId: user.vault_id, addressId: user.address_id }), db);
+      storeAttempt(await advanceAttempt(attempt, { type: "cancel" }, { database: db, now: () => Date.now(), vaultId: user.vault_id, addressId: user.address_id }), db);
     }
   }
   return mandate;
@@ -59,25 +59,25 @@ export function createRequest(userId: number, draft: RequestDraft, now: number, 
   db.prepare("INSERT INTO shopping_requests (id, user_id, payload) VALUES (?, ?, ?)").run(request.id, userId, JSON.stringify(request));
   return request;
 }
-export function searchRequest(userId: number, requestId: string, goalId: string, merchantId: string | undefined, preferencesAccepted: boolean, now: number, db = getDb()): Attempt {
+export async function searchRequest(userId: number, requestId: string, goalId: string, merchantId: string | undefined, preferencesAccepted: boolean, now: number, db = getDb()): Promise<Attempt> {
   const user = userRecord(userId, db);
   const request = ownedPayload<ShoppingRequest>("shopping_requests", userId, requestId, db);
   if (request.revision !== user.mandate_revision) throw new Error("Mandate changed. Start a new request under the confirmed form.");
   if (typeof goalId !== "string" || !request.goals.some(g => g.id === goalId) || (merchantId !== undefined && (typeof merchantId !== "string" || merchantId.length > 100))) throw new Error("Invalid goal or merchant");
-  const attempt = runAttempt({ userId, requestId, text: request.text, goals: request.goals, goalId, shares: request.shares, budget: request.budget,
+  const attempt = await runAttempt({ userId, requestId, text: request.text, goals: request.goals, goalId, shares: request.shares, budget: request.budget,
     partialAccepted: request.partialAccepted, mandate: request.mandate, merchantId, preferencesAccepted },
     { database: db, now: () => now, vaultId: user.vault_id, addressId: user.address_id,
       authorize: () => { if (userRecord(userId, db).mandate_revision !== request.revision) throw new Error("Mandate changed before booking"); } });
   return storeAttempt(attempt, db);
 }
-export function actOnAttempt(userId: number, attemptId: string, event: AttemptEvent, now: number, db = getDb()): Attempt {
+export async function actOnAttempt(userId: number, attemptId: string, event: AttemptEvent, now: number, db = getDb()): Promise<Attempt> {
   const user = userRecord(userId, db);
   const attempt = ownedPayload<Attempt>("attempts", userId, attemptId, db);
   const request = ownedPayload<ShoppingRequest>("shopping_requests", userId, attempt.input.requestId, db);
   if (!event || !["select", "confirm", "price_change", "accept_repeat", "retry", "decline", "cancel", "tick"].includes(event.type)) throw new Error("Invalid attempt action");
   if ((event.type === "confirm" && !Number.isSafeInteger(event.version)) || (event.type === "select" && typeof event.skuId !== "string") || (event.type === "price_change" && ![360, 410].includes(event.cashTotal))) throw new Error("Invalid action value");
   if (request.revision !== user.mandate_revision) attempt.input.mandate.revoked = true;
-  const advanced = advanceAttempt(attempt, event, { database: db, now: () => now, vaultId: user.vault_id, addressId: user.address_id,
+  const advanced = await advanceAttempt(attempt, event, { database: db, now: () => now, vaultId: user.vault_id, addressId: user.address_id,
     authorize: () => { if (userRecord(userId, db).mandate_revision !== request.revision) throw new Error("Mandate changed before booking"); } });
   return storeAttempt(advanced, db);
 }

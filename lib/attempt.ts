@@ -1,16 +1,18 @@
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
-import { loadCatalog, hasInjection, CATEGORY_IDS, type Offer } from "@/lib/catalog";
-import { parseIntent, type Goal } from "@/lib/intent";
-import { checkMandate, type Mandate } from "@/lib/mandate";
+import { CATEGORY_IDS, type Offer } from "@/lib/catalog";
+import { parseIntent, intentFromDraft, type Goal, type Intent } from "@/lib/intent";
+import { complete, proposeTurn } from "@/lib/complete";
+import type { Mandate } from "@/lib/mandate";
 import { checkAllocations } from "@/lib/allocation";
 import { rankOffers, resolveWeights, DEFAULT_WEIGHTS, type RankedOffer, type Weights } from "@/lib/rank";
 import { createQuote, checkQuote, quoteChanged, searchDeadline, clarifyDeadline, type Quote } from "@/lib/quote";
-import { negotiate, releaseCoupon, type CouponState } from "@/lib/negotiate";
+import { releaseCoupon, type CouponState } from "@/lib/negotiate";
 import { historySkus, recentSkus, spent7d, spentShare, spentRequest, receipt } from "@/lib/ledger";
-import { mockPay, type PayContext } from "@/lib/pay";
+import type { PayContext } from "@/lib/pay";
 import { newTrace, log, type Trace } from "@/lib/trace";
-import { issueIntent, issuePayment, verifyPair } from "@/lib/credential";
+import { deliver, type AgentMessage } from "@/lib/message";
+import { shopperTurn, type OfferCursor } from "@/lib/agents";
 
 export type AttemptInput = { userId: number; requestId: string; text: string; goals: Goal[]; goalId: string;
   shares: Record<string, number | null>; budget: number; partialAccepted: boolean; mandate: Mandate;
@@ -20,7 +22,8 @@ export type Attempt = { id: string; input: AttemptInput; trace: Trace; status: "
   reason: string; offers: RankedOffer[]; selected: Offer | null; quote: Quote | null;
   quoteVersion: number; coupon: CouponState; clarifyExpiresAt: number | null; idempotencyKey: string; repeatedAccepted: boolean };
 export type AttemptContext = { database: DatabaseSync; now: () => number; vaultId: string; addressId: string;
-  catalog?: Offer[]; lookup?: (sku: string) => Offer | undefined; paySimulation?: PayContext["simulation"]; authorize?: () => void; flipCredential?: boolean };
+  catalog?: Offer[]; lookup?: (sku: string) => Offer | undefined; paySimulation?: PayContext["simulation"]; authorize?: () => void; flipCredential?: boolean;
+  draft?: (sentence: string) => unknown | Promise<unknown> };
 export type AttemptEvent = { type: "select"; skuId: string } | { type: "confirm"; version: number } |
   { type: "price_change"; cashTotal: number } | { type: "accept_repeat" } | { type: "retry" } | { type: "decline" } | { type: "cancel" } | { type: "tick" };
 
@@ -42,54 +45,93 @@ function skip(a: Attempt, reason: string) {
   a.coupon = releaseCoupon(); a.status = "offers"; a.quote = null; a.reason = reason;
   return a;
 }
-function prepare(a: Attempt, offer: Offer, ctx: AttemptContext) {
-  const now = ctx.now();
-  a.coupon = releaseCoupon(); a.selected = offer; a.quote = null;
-  const current = ctx.lookup?.(offer.sku_id) ?? (ctx.catalog ? ctx.catalog.find(o => o.sku_id === offer.sku_id) : offer);
-  const audited = loadCatalog(current ? [current] : []);
-  if (!audited.offers.length) {
-    const drop = audited.dropped[0];
-    if (drop) log(a.trace, "search", drop.rule, drop.reason, { sku: drop.sku_id }, now);
-    return skip(a, drop?.reason ?? "Current catalogue offer rejected");
+async function readSentence(text: string, ctx: AttemptContext): Promise<Intent> {
+  if (!process.env.SCOUT_LLM) return parseIntent(text);
+  try {
+    const raw = ctx.draft ? await ctx.draft(text) : await complete(text);
+    return intentFromDraft(raw);
+  } catch {
+    return { status: "clarify", goals: [], budgetHint: null, reason: "Model draft was not catalogue JSON" };
   }
-  const result = negotiate(offer, audited.offers[0]);
-  log(a.trace, "negotiate", result.status, result.reason, { coupon: result.coupon, shelf: offer.shelf, shipping: offer.shipping ?? null }, now);
-  if (result.status === "rejected") return skip(a, result.reason);
-  let priced = offer;
-  if (result.status === "counter") {
-    if (hasInjection(result.reason)) {
-      log(a.trace, "search", "listing_injection", "Auditor vetoed a counter that carries an instruction", { sku: offer.sku_id }, now);
-      return skip(a, "Auditor vetoed the counter");
-    }
-    priced = result.offer;
-  }
-  a.quote = createQuote(priced, a.input.goals.find(g => g.id === a.input.goalId)!.qty!, a.input.mandate, now);
-  a.quoteVersion += 1;
-  const budget = remaining(a, ctx);
-  const gate = checkQuote(a.quote, a.input.mandate, budget.share, budget.rolling, now);
-  log(a.trace, "quote", "cash_gate", gate.reason, { cash: a.quote.cashTotal, line: a.quote.items[0].lineTotal, shipping: a.quote.shipping, effective: a.quote.effectiveCost, share: budget.share, rolling: budget.rolling }, now);
-  if (gate.status !== "ready") return result.status === "counter" ? skip(a, gate.reason) : stop(a, gate.reason, now);
-  a.selected = priced; a.coupon = "reserved";
-  if (!a.repeatedAccepted && recentSkus(a.input.userId, now, ctx.database).includes(offer.sku_id)) return clarify(a, "repeat", "Same SKU purchased within 72 hours. Confirm this is intentional.", now);
-  a.status = "quote"; a.issue = null; a.clarifyExpiresAt = null; a.reason = "Review the final quote before mock payment";
-  return a;
 }
 
-export function runAttempt(input: AttemptInput, ctx: AttemptContext): Attempt {
+async function filterCatalog(a: Attempt, rows: Offer[] | undefined, now: number) {
+  const reply = await deliver(a.trace, { traceId: a.trace.id, from: "shopper", to: "auditor", type: "filter_catalog", body: { rows } }, now, "search");
+  const result = reply.body as { kept: Offer[]; dropped: { sku_id: string; rule: string; reason: string }[] };
+  for (const drop of result.dropped) log(a.trace, "search", drop.rule, drop.reason, { sku: drop.sku_id }, now);
+  return result;
+}
+
+function liveRow(offer: Offer, ctx: AttemptContext) {
+  if (ctx.lookup) return ctx.lookup(offer.sku_id);
+  if (ctx.catalog) return ctx.catalog.find(row => row.sku_id === offer.sku_id);
+  return offer;
+}
+
+async function bargain(a: Attempt, offers: Offer[], ctx: AttemptContext, whenEmpty: "stop" | "leave"): Promise<Attempt> {
+  const now = ctx.now();
+  const goal = a.input.goals.find(g => g.id === a.input.goalId)!;
+  const budget = remaining(a, ctx);
+  const cursor: OfferCursor = { offers, current: offers.map(offer => liveRow(offer, ctx)), index: 0, phase: "negotiate", merchant: "accepted", priced: null, quote: null, reason: "" };
+  let last: AgentMessage | null = null;
+  for (let guard = 0; guard < offers.length * 4 + 1; guard += 1) {
+    const turn = shopperTurn(cursor, last, { mandate: a.input.mandate, qty: goal.qty!, share: budget.share, rolling: budget.rolling, now });
+    await judgeTurn(a, turn, now, last?.type ?? null);
+    if (turn.kind === "send") {
+      if (turn.type === "negotiate") { a.coupon = releaseCoupon(); a.quote = null; a.selected = turn.offer ?? null; }
+      if (turn.type === "check_cash" && turn.quote) { a.quote = turn.quote; a.quoteVersion += 1; }
+      last = await deliver(a.trace, { traceId: a.trace.id, from: "shopper", to: turn.to, type: turn.type, body: turn.body }, now, turn.step);
+      continue;
+    }
+    if (turn.kind === "stop") return stop(a, turn.reason, now);
+    if (turn.kind === "exhausted") return whenEmpty === "stop" ? stop(a, "All catalogue negotiations rejected", now) : skip(a, turn.reason || "Current catalogue offer rejected");
+    a.selected = turn.priced; a.coupon = "reserved"; a.quote = turn.quote;
+    if (!a.repeatedAccepted && recentSkus(a.input.userId, now, ctx.database).includes(offers[cursor.index].sku_id)) return clarify(a, "repeat", "Same SKU purchased within 72 hours. Confirm this is intentional.", now);
+    a.status = "quote"; a.issue = null; a.clarifyExpiresAt = null; a.reason = "Review the final quote before mock payment";
+    return a;
+  }
+  return stop(a, "All catalogue negotiations rejected", now);
+}
+
+const LEGAL_TURN = new Set(["negotiate", "review_text", "filter_catalog", "check_cash", "validate_form", "still_valid", "request_conflict", "filter_limits", "stop"]);
+
+function readProposal(raw: unknown) {
+  let value = raw;
+  if (typeof raw === "string") {
+    try { value = JSON.parse(raw.trim().replace(/^```json\s*/i, "").replace(/```$/, "")); } catch { return { to: "", type: "" }; }
+  }
+  if (!value || typeof value !== "object") return { to: "", type: "" };
+  const row = value as { to?: unknown; type?: unknown };
+  return { to: typeof row.to === "string" ? row.to : "", type: typeof row.type === "string" ? row.type : "" };
+}
+
+async function judgeTurn(a: Attempt, turn: { kind: string; to?: string; type?: string }, now: number, lastType: string | null) {
+  if (!process.env.SCOUT_LLM) return;
+  const codeTo = turn.kind === "send" ? String(turn.to) : "shopper";
+  const codeType = turn.kind === "send" ? String(turn.type) : "stop";
+  let proposed = { to: "", type: "" };
+  try { proposed = readProposal(await proposeTurn({ kind: turn.kind, lastType })); } catch { proposed = { to: "", type: "" }; }
+  const forbidden = proposed.to === "payer" || proposed.type === "charge" || proposed.type === "retry";
+  const closed = LEGAL_TURN.has(proposed.type) && (proposed.type === "stop" || proposed.to === "merchant" || proposed.to === "mandate" || proposed.to === "auditor");
+  const match = !forbidden && closed && proposed.type === codeType && (codeType === "stop" || proposed.to === codeTo);
+  log(a.trace, "turn", match ? "model_turn_ok" : "model_turn_rejected", match ? "Shopper proposal matched the next message" : "Shopper proposal refused; the tool message was sent", { proposedTo: proposed.to, proposedType: proposed.type, codeTo, codeType }, now);
+}
+
+export async function runAttempt(input: AttemptInput, ctx: AttemptContext): Promise<Attempt> {
   const started = ctx.now();
   const a: Attempt = { id: randomUUID(), input, trace: newTrace(), status: "offers", issue: null, reason: "", offers: [], selected: null,
     quote: null, quoteVersion: 0, coupon: "unused", clarifyExpiresAt: null, idempotencyKey: randomUUID(), repeatedAccepted: false };
-  const parsed = parseIntent(input.text);
+  const parsed = await readSentence(input.text, ctx);
   log(a.trace, "parse", "typed_intent", parsed.reason, { goals: parsed.goals.length, budgetHint: parsed.budgetHint }, started);
   if (parsed.status === "terminate") return stop(a, parsed.reason, started);
-  const mandate = checkMandate(input.mandate, started);
-  log(a.trace, "mandate", "mandate_valid", mandate.reason, { perItem: input.mandate.perItem, perOrder: input.mandate.perOrder, rolling7d: input.mandate.rolling7d }, started);
+  if (process.env.SCOUT_LLM && parsed.status !== "ready") return clarify(a, "list", parsed.reason, started);
+  const mandate = (await deliver(a.trace, { traceId: a.trace.id, from: "shopper", to: "mandate", type: "validate_form", body: { mandate: input.mandate, now: started } }, started, "mandate")).body as { status: "ready" | "clarify" | "terminate"; reason: string };
   if (mandate.status !== "ready") return stop(a, mandate.reason, started);
   const goal = input.goals.find(g => g.id === input.goalId);
   if (!goal || !input.goals.length || new Set(input.goals.map(g => g.id)).size !== input.goals.length || input.goals.some(g => !CATEGORY_IDS.includes(g.categoryId) || g.id !== g.categoryId || !Number.isSafeInteger(g.qty) || (g.qty ?? 0) < 1 || (g.qty ?? 0) > 10000)) return clarify(a, "list", "Set a positive whole quantity for every catalogue goal", started);
-  const conflict = checkMandate(input.mandate, started, { categoryId: goal.categoryId, merchantId: input.merchantId,
-    budgetHint: input.goals.length === 1 ? parsed.budgetHint : null });
+  const conflict = (await deliver(a.trace, { traceId: a.trace.id, from: "shopper", to: "mandate", type: "request_conflict", body: { mandate: input.mandate, now: started, request: { categoryId: goal.categoryId, merchantId: input.merchantId, budgetHint: input.goals.length === 1 ? parsed.budgetHint : null } } }, started, "mandate")).body as { status: "ready" | "clarify" | "terminate"; reason: string };
   if (conflict.status === "clarify") return clarify(a, "mandate", conflict.reason, started);
+  if (conflict.status === "terminate") return stop(a, conflict.reason, started);
   if (input.goals.length > 1 && !input.partialAccepted) return clarify(a, "allocation", "Accept possible partial completion of separate sub-requests", started);
   if (Object.keys(input.shares).length !== input.goals.length || input.goals.some(g => !(g.id in input.shares))) return clarify(a, "allocation", "Each goal needs its own fixed share", started);
   const allocation = checkAllocations(input.shares, input.budget, input.mandate.rolling7d - spent7d(input.userId, started, ctx.database) + spentRequest(input.userId, input.requestId, ctx.database));
@@ -100,65 +142,48 @@ export function runAttempt(input: AttemptInput, ctx: AttemptContext): Attempt {
   const preferences = resolveWeights(input.preferencesAccepted ? "" : input.text, explicit);
   if (preferences.status === "terminate") return stop(a, preferences.reason, started);
   if (preferences.status === "clarify") return clarify(a, "weights", preferences.reason, started);
-  const catalog = loadCatalog(ctx.catalog);
-  for (const drop of catalog.dropped) log(a.trace, "search", drop.rule, drop.reason, { sku: drop.sku_id }, ctx.now());
+  const catalog = await filterCatalog(a, ctx.catalog, ctx.now());
   const limits = remaining(a, ctx);
-  const eligible = catalog.offers.filter(o => {
-    if (input.merchantId && o.merchant_id !== input.merchantId) return false;
-    const gate = checkQuote(createQuote(o, goal.qty!, input.mandate, ctx.now()), input.mandate, limits.share, limits.rolling, ctx.now());
-    if (gate.status !== "ready") log(a.trace, "search", "offer_limit", gate.reason, { sku: o.sku_id }, ctx.now());
-    return gate.status === "ready";
-  });
+  const candidates = catalog.kept.filter(o => !input.merchantId || o.merchant_id === input.merchantId);
+  const limited = (await deliver(a.trace, { traceId: a.trace.id, from: "shopper", to: "mandate", type: "filter_limits", body: { offers: candidates, qty: goal.qty, mandate: input.mandate, share: limits.share, rolling: limits.rolling, now: ctx.now() } }, ctx.now(), "search")).body as { rejected: { sku: string; reason: string }[]; allowed: string[] };
+  for (const row of limited.rejected) log(a.trace, "search", "offer_limit", row.reason, { sku: row.sku }, ctx.now());
+  const eligible = candidates.filter(o => limited.allowed.includes(o.sku_id));
   if (ctx.now() >= searchDeadline(started, input.mandate)) return stop(a, "Search timeout before charge", ctx.now());
-  log(a.trace, "search", "catalog_only", "Searched fixed mock catalogue; no network model", { clean: catalog.offers.length, eligible: eligible.length, timeout: searchDeadline(started, input.mandate) }, ctx.now());
+  log(a.trace, "search", "catalog_only", "Searched fixed mock catalogue; no network model", { clean: catalog.kept.length, eligible: eligible.length, timeout: searchDeadline(started, input.mandate) }, ctx.now());
   const ranked = rankOffers(eligible, goal, input.mandate, historySkus(input.userId, ctx.database), preferences.weights);
   a.offers = ranked.offers;
   log(a.trace, "rank", "one_merchant_top3", ranked.reason, { offers: a.offers.length, topScore: a.offers[0]?.score ?? null }, ctx.now());
   if (ranked.status === "terminate") return stop(a, ranked.reason, ctx.now());
   if (ranked.status === "clarify") return clarify(a, "tie", ranked.reason, ctx.now());
-  for (const choice of a.offers) {
-    prepare(a, choice.offer, ctx);
-    if (a.status !== "offers") break;
-  }
-  if (a.status === "offers") return stop(a, "All catalogue negotiations rejected", ctx.now());
+  await bargain(a, a.offers.map(choice => choice.offer), ctx, "stop");
   if (a.status === "quote" && input.mandate.confirmMode === "auto") return advanceAttempt(a, { type: "confirm", version: a.quoteVersion }, ctx);
   return a;
 }
 
-function pay(a: Attempt, ctx: AttemptContext) {
+async function pay(a: Attempt, ctx: AttemptContext) {
   const q = a.quote!;
-  const did = `did:mock:${a.input.userId}`;
-  const intent = issueIntent(did, a.input.mandate);
-  let payment = issuePayment(intent, q);
-  if (ctx.flipCredential) {
-    const chars = payment.signature.split("");
-    chars[0] = chars[0] === "0" ? "1" : "0";
-    payment = { ...payment, signature: chars.join("") };
-  }
-  const verdict = verifyPair(intent, payment, did, a.input.mandate, q);
-  log(a.trace, "audit", verdict.ok ? "credentials_ok" : "credentials_bad", verdict.reason, { cash: q.cashTotal, merchant: q.merchantId }, ctx.now());
+  const verdict = (await deliver(a.trace, { traceId: a.trace.id, from: "shopper", to: "auditor", type: "verify", body: { did: `did:mock:${a.input.userId}`, mandate: a.input.mandate, quote: q, flip: ctx.flipCredential === true, cash: q.cashTotal } }, ctx.now(), "audit")).body as { ok: boolean; reason: string };
   if (!verdict.ok) return stop(a, verdict.reason, ctx.now());
   const input = { vaultId: ctx.vaultId, addressId: ctx.addressId, amount: q.cashTotal, currency: q.currency,
     tender: q.tender, expiresAt: q.expiresAt, idempotencyKey: a.idempotencyKey };
   const context: PayContext = { userId: a.input.userId, requestId: a.input.requestId, goalId: a.input.goalId, traceId: a.trace.id,
     skus: q.items.map(i => i.sku_id), cashback: q.reward.cashback, mandate: a.input.mandate, now: ctx.now(), simulation: ctx.paySimulation,
     guard: () => { ctx.authorize?.(); const limits = remaining(a, ctx); const gate = checkQuote(q, a.input.mandate, limits.share, limits.rolling, ctx.now()); if (gate.status !== "ready") throw new Error(gate.reason); } };
-  let result = mockPay(input, context, ctx.database);
-  log(a.trace, "pay", "mock_refs_idempotency", result.reason, { cash: q.cashTotal, key: a.idempotencyKey }, ctx.now());
+  let result = (await deliver(a.trace, { traceId: a.trace.id, from: "shopper", to: "payer", type: "charge", body: { input, context, ruleId: "mock_refs_idempotency", cash: q.cashTotal } }, ctx.now(), "pay", ctx.database)).body as { status: "paid" | "clarify" | "terminate"; reason: string };
   if (result.status === "clarify") {
-    result = mockPay(input, { ...context, simulation: ctx.paySimulation === "retry_failed" ? "retry_failed" : undefined }, ctx.database);
-    log(a.trace, "pay", "same_key_retry", result.reason, { key: a.idempotencyKey, cash: q.cashTotal }, ctx.now());
+    result = (await deliver(a.trace, { traceId: a.trace.id, from: "shopper", to: "payer", type: "retry", body: { input, context: { ...context, simulation: ctx.paySimulation === "retry_failed" ? "retry_failed" : undefined }, ruleId: "same_key_retry", cash: q.cashTotal } }, ctx.now(), "pay", ctx.database)).body as { status: "paid" | "clarify" | "terminate"; reason: string };
   }
   if (result.status === "paid") { a.status = "paid"; a.issue = null; a.clarifyExpiresAt = null; a.coupon = "spent"; a.reason = result.reason; return a; }
   if (result.status === "clarify") return clarify(a, "pay", result.reason, ctx.now());
   return stop(a, result.reason, ctx.now());
 }
 
-export function advanceAttempt(a: Attempt, event: AttemptEvent, ctx: AttemptContext): Attempt {
+export async function advanceAttempt(a: Attempt, event: AttemptEvent, ctx: AttemptContext): Promise<Attempt> {
   const now = ctx.now();
   if (a.status === "paid" || a.status === "terminate") return a;
-  if (a.issue === "pay" && receipt(a.idempotencyKey, ctx.database)) return pay(a, ctx);
-  if (checkMandate(a.input.mandate, now).status !== "ready") return stop(a, "Mandate revoked or expired", now);
+  if (a.issue === "pay" && receipt(a.idempotencyKey, ctx.database)) return await pay(a, ctx);
+  const still = (await deliver(a.trace, { traceId: a.trace.id, from: "shopper", to: "mandate", type: "still_valid", body: { mandate: a.input.mandate, now } }, now, "mandate")).body as { status: string; reason: string };
+  if (still.status !== "ready") return stop(a, still.reason, now);
   if (a.clarifyExpiresAt !== null && now >= a.clarifyExpiresAt) return stop(a, "Clarification timeout", now);
   if (a.quote && now >= a.quote.expiresAt) return stop(a, "Quote expired", now);
   if (event.type === "cancel") return stop(a, "User cancelled the attempt", now);
@@ -175,7 +200,7 @@ export function advanceAttempt(a: Attempt, event: AttemptEvent, ctx: AttemptCont
     const selected = a.offers.find(o => o.offer.sku_id === event.skuId);
     if (!selected) return stop(a, "Offer is not part of this attempt", now);
     a.repeatedAccepted = false;
-    return prepare(a, selected.offer, ctx);
+    return await bargain(a, [selected.offer], ctx, "leave");
   }
   if (event.type === "accept_repeat" && a.issue === "repeat") {
     a.repeatedAccepted = true; a.status = "quote"; a.issue = null; a.clarifyExpiresAt = null; a.reason = "Repeated purchase accepted; review and confirm quote";
@@ -190,17 +215,18 @@ export function advanceAttempt(a: Attempt, event: AttemptEvent, ctx: AttemptCont
     a.quote = updated; a.quoteVersion += 1;
     return clarify(a, "price", "Quote changed: previous confirmation is void. Accept the new quote or roll back.", now);
   }
-  if (event.type === "retry" && a.issue === "pay") return pay(a, ctx);
+  if (event.type === "retry" && a.issue === "pay") return await pay(a, ctx);
   if (event.type === "confirm" && a.quote && (a.status === "quote" || a.issue === "price")) {
     if (event.version !== a.quoteVersion) return clarify(a, "price", "Stale confirmation. Review and accept the latest quote.", now);
     const current = ctx.lookup?.(a.selected!.sku_id);
     if (ctx.lookup && !current) return stop(a, "Offer no longer exists", now);
     if (current) {
-      if (!current.stock || loadCatalog([current]).offers.length === 0) return stop(a, "Current catalogue offer rejected", now);
+      const checked = await filterCatalog(a, [current], now);
+      if (!current.stock || checked.kept.length === 0) return stop(a, "Current catalogue offer rejected", now);
       const updated = createQuote(current, a.quote.items[0].qty, a.input.mandate, now);
       if (quoteChanged(a.quote, updated)) { updated.expiresAt = a.quote.expiresAt; a.quote = updated; a.selected = current; a.quoteVersion += 1; return clarify(a, "price", "Final catalogue terms changed. Previous confirmation is void.", now); }
     }
-    return pay(a, ctx);
+    return await pay(a, ctx);
   }
   return a;
 }

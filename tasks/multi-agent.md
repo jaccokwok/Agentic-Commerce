@@ -30,9 +30,12 @@ The user remains the only party who can confirm a mandate, break a tie, accept a
 
 Money stays in `lib/money.ts`. Every role reads that result. No role reimplements the five-step formula.
 
-## What stays out until these slices are green
+## What stays out
 
-- A second process, a queue, or an agent framework. Roles are modules in this repo until a slice needs a process boundary.
+Slices 1–5 are green. The next work is Slices 6–8 in `tasks/build-steps.md`: the same five functions, called by one message object `{ traceId, from, to, type, body }`. `lib/attempt.ts` is still the only composer. A reply is appended before the next step.
+
+- A second process, a queue, or an agent framework. The exchange is an in-process object. It is not a new runtime.
+- Slice 6 is only the shopper asking one website. The mandate, the auditor, and the payer stay direct calls until Slices 7 and 8.
 - A hosted model. The parser stays deterministic. A model may sit behind the same JSON later, and the harness still must not call one.
 - A live Stripe key, a live DID registry, or a public blockchain.
 - Cross-merchant baskets. One goal, one merchant, at most three offers, until the orchestrator can already run the five roles.
@@ -59,6 +62,45 @@ Slice 4  mock DID and two signed credentials checked before pay
         │
         ▼
 Slice 5  auto pay only when auditor and payer both accept
+        │
+        ▼
+Slice 6  shopper and one website exchange a message
+        │
+        ▼
+Slice 7  mandate and auditor answer with messages
+        │
+        ▼
+Slice 8  payer charge is one message, wallet stays inside it
+        │
+        ▼
+Slice 9  registry lookup; charge requires credentials_ok
+        │
+        ▼
+Slice 10 one handler per website: taobao, hktvmall, pinduoduo
+        │
+        ▼
+Slice 11 auditor messages for listings and counter text
+        │
+        ▼
+Slice 12 mandate messages for the form, row limits, and expiry
+        │
+        ▼
+Slice 13 shopper names the next message after rank
+        │
+        ▼
+Slice 14 model drafts parse JSON only when SCOUT_LLM is set
+        │
+        ▼
+Slice 15 deck matches the log
+        │
+        ▼
+Slice 16 each role explains its tool result
+        │
+        ▼
+Slice 17 shopper proposes the next legal message
+        │
+        ▼
+Slice 18 one live search, then the deck
 ```
 
 Each slice keeps `npm test` green and the harness overspend count at 0. Stop after a slice if that fails. Do not start the next slice in the same commit.
@@ -135,6 +177,18 @@ Auto mode pays only when all of these are true: one offer is strictly first, no 
 Done when the harness happy path still pays, the tie path still asks, and an auto attempt with a broken payment credential does not book.
 
 Files: `lib/attempt.ts`, `lib/harness.ts`, attempt and harness tests.
+
+## What is not orchestration yet
+
+Slices 6–18 are in the working tree. `deliver` looks up the role. A charge with no `credentials_ok` does not book. Only the row’s website handler runs. The auditor filters listings and reads a counter reason by message. The mandate answers `validate_form`, `request_conflict`, `filter_limits`, `still_valid`, and the cash gate by message. After rank, the shopper returns the next message: `negotiate` for the winning row, then the next message from that reply. With `SCOUT_LLM` unset, parse stays `parseIntent` and no network call is made. With it set, `complete` may draft goals, quantity, brand, appearance, and a budget hint, and each role may add one explanation after its tool has decided. A model field that names a different cash, status, limit, or signature is dropped. The log says “Explanation skipped” when that call fails. After rank, the shopper model may propose the next `to` and `type`. A match is `model_turn_ok` and that tool message is delivered. `payer`, `charge`, `retry`, or any other difference is `model_turn_rejected`, and the tool message is delivered anyway. A tie never sends `negotiate`. Shares, weights, rank, the 72-hour sku check, `priceLine`, and the `book()` guard stay tools. One live red balloons search returned HTTP 200 and ended at a quote. Cash stayed 60 HKD. The first proposal was `model_turn_ok`. Two later proposals were `model_turn_rejected`, and the tool message was sent. The 13 replay statuses are unchanged and overspend count is 0. The deck names the explanation line and those two rule ids. There is no LangChain. `npm run demo` prints every replay. `npm run live` repeats that one search.
+
+## Slice 6 — One message to one website
+
+Status: in the working tree, not committed. `deliver` in `lib/message.ts` is the only way the shopper reaches the merchant, the mandate, the auditor, and the payer. Each reply is logged as `from → to` before the next step. A bad signature produces no payer line. No model and no LangChain. 50 tests. Overspend count 0.
+
+Done when a paid attempt shows those two directed lines before the charge, a counter reply does not change the shelf, a reject leaves the coupon unused, and the harness still prints overspend count 0.
+
+Files: `lib/message.ts`, `lib/trace.ts`, `lib/attempt.ts`, `components/trace-log.tsx`, attempt tests.
 
 ## Branch rules
 
