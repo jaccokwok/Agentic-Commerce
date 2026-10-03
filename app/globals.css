@@ -3,16 +3,44 @@
 :root {
   --background: #f4f4f0;
   --foreground: #171717;
+  --surface: #ffffff;
+  --border: #d4d4d4;
+  --accent: #c8f14f;
+  --muted: #525252;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: Arial, Helvetica, sans-serif;
+  --font-mono: Consolas, monospace;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
 }
+
+.shop-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 1rem; padding: 1.5rem; }
+.shop-panel h2, .flow-dialog h2 { font-size: 1.25rem; font-weight: 600; }
+.shop-panel h3 { font-size: 1rem; font-weight: 600; }
+.shop-muted { color: var(--muted); font-size: .8125rem; line-height: 1.6; }
+.shop-error { color: #b91c1c; font-size: .8125rem; }
+.shop-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.shop-panel label { font-size: .875rem; line-height: 1.5; }
+.shop-panel input:not([type=checkbox]), .shop-panel select, .shop-panel textarea { display: block; width: 100%; margin-top: .375rem; padding: .625rem .75rem; border: 1px solid var(--border); border-radius: .375rem; background: var(--surface); color: var(--foreground); min-width: 0; }
+.shop-panel textarea { min-height: 5rem; resize: vertical; }
+.shop-check { display: flex; align-items: center; gap: .5rem; }
+.shop-check input { width: 1rem; height: 1rem; flex-shrink: 0; accent-color: var(--foreground); }
+.shop-primary, .shop-secondary { border-radius: .5rem; padding: .625rem 1rem; font-size: .875rem; font-weight: 600; cursor: pointer; }
+.shop-primary { background: var(--accent); color: var(--foreground); border: 1px solid transparent; }
+.shop-secondary { background: var(--surface); color: var(--foreground); border: 1px solid var(--border); }
+button:disabled, fieldset:disabled { opacity: .55; cursor: not-allowed; }
+button:hover:not(:disabled) { filter: brightness(.96); }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 2px solid var(--foreground); outline-offset: 3px; }
+.shop-list-row, .shop-offer { padding: 1rem; border: 1px solid var(--border); border-radius: .5rem; min-width: 0; }
+.shop-offer-selected { border: 2px solid var(--foreground); }
+.flow-dialog { margin: auto; width: min(36rem, calc(100% - 2rem)); max-height: calc(100dvh - 2rem); overflow: auto; padding: 1.5rem; border-radius: .75rem; border: 1px solid var(--border); color: var(--foreground); background: var(--surface); }
+.flow-dialog::backdrop { background: rgb(0 0 0 / .45); }
+summary { cursor: pointer; }
+@media (max-width: 640px) { .shop-fields { grid-template-columns: minmax(0, 1fr); } .shop-panel { padding: 1rem; } }

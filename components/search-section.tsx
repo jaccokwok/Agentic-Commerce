@@ -1,143 +1,104 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-import { ArrowRightIcon, ScoutMark, SlidersIcon } from "@/components/icons";
+import Link from "next/link";
+import { useEffect, useState, useTransition } from "react";
+import { requestAction, searchAction, attemptAction, spendingAction } from "@/app/actions/shop";
+import { parseIntent, type Goal } from "@/lib/intent";
+import { newAllocations, checkAllocations } from "@/lib/allocation";
+import { defaultMandate, type Mandate } from "@/lib/mandate";
+import type { RequestDraft } from "@/lib/shop-service";
+import type { Attempt, AttemptEvent } from "@/lib/attempt";
+import MandateForm from "@/components/mandate-form";
+import ShoppingList from "@/components/shopping-list";
+import OfferList from "@/components/offer-list";
+import QuoteReview from "@/components/quote-review";
+import TraceLog from "@/components/trace-log";
 
-const SUGGESTIONS = [
-  "Carry-on under $180",
-  "Non-toxic cookware",
-  "Running shoes for wide feet",
-];
+export default function SearchSection({ signedIn, initialMandate, initialSpent }: { signedIn: boolean; initialMandate?: Mandate; initialSpent: number }) {
+  const [mandate, setMandate] = useState(initialMandate ?? defaultMandate());
+  const [confirmed, setConfirmed] = useState(false);
+  const [query, setQuery] = useState("party items for 8, red balloons, budget 350");
+  const [draft, setDraft] = useState<RequestDraft | null>(null);
+  const [requestId, setRequestId] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState<Attempt | null>(null);
+  const [spent, setSpent] = useState(initialSpent);
+  const [merchant, setMerchant] = useState("");
+  const [message, setMessage] = useState("");
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [busy, startTransition] = useTransition();
 
-const INITIAL_QUERY =
-  "A quiet espresso machine for a small kitchen, easy to clean, with a steam wand";
-
-const FIELD_LABEL =
-  "font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-400";
-
-export default function SearchSection() {
-  const [query, setQuery] = useState(INITIAL_QUERY);
-  const [minPrice, setMinPrice] = useState("250");
-  const [maxPrice, setMaxPrice] = useState("650");
-
-  // TODO: send `query`, `minPrice` and `maxPrice` to the Scout agent API once
-  // the backend exists. Backend logic is intentionally left unimplemented.
-  function handleSendScout(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function receive(next: Attempt) {
+    setAttempt(next);
+    if (next.status === "paid") { const stats = await spendingAction(); if (stats.data !== null) setSpent(stats.data); }
   }
-
-  function handlePrice(value: string): string {
-    return value.replace(/[^0-9]/g, "").slice(0, 6);
+  function act(event: AttemptEvent) {
+    if (!attempt) return;
+    startTransition(async () => {
+      try { const result = await attemptAction(attempt.id, event); if (result.data) await receive(result.data); else setMessage(result.error ?? "Action failed"); }
+      catch { setMessage("Connection failed. Retry the existing attempt; a payment retry uses the same reference."); }
+    });
   }
+  function invalidate() {
+    setRequestId(null); setReviewOpen(false);
+    if (attempt && !["paid", "terminate"].includes(attempt.status)) {
+      const id = attempt.id;
+      startTransition(async () => {
+        try { const result = await attemptAction(id, { type: "cancel" }); if (result.error) setMessage(result.error); }
+        catch { setMessage("Could not cancel the previous attempt. It must pass expiry and budget checks before any payment."); }
+      });
+    }
+    setAttempt(null);
+  }
+  function search(goal: Goal, preferencesAccepted = false) {
+    if (!draft || !confirmed) return;
+    setMessage(""); setReviewOpen(false);
+    startTransition(async () => {
+      try {
+        let id = requestId;
+        if (!id) { const result = await requestAction(draft); if (!result.data) { setMessage(result.error ?? "Invalid request"); return; } id = result.data.id; setRequestId(id); }
+        if (attempt && !["paid", "terminate"].includes(attempt.status)) await attemptAction(attempt.id, { type: "cancel" });
+        const result = await searchAction(id, goal.id, merchant || undefined, preferencesAccepted);
+        if (result.data) await receive(result.data); else setMessage(result.error ?? "Search failed");
+      } catch { setMessage("Connection failed. Search did not complete; check the existing attempt before retrying."); }
+    });
+  }
+  useEffect(() => {
+    if (!attempt || ["paid", "terminate", "offers"].includes(attempt.status)) return;
+    const deadline = Math.min(attempt.clarifyExpiresAt ?? Infinity, attempt.quote?.expiresAt ?? Infinity, attempt.input.mandate.expiresAt ?? Infinity);
+    if (!Number.isFinite(deadline)) return;
+    const timer = setTimeout(() => startTransition(async () => {
+      try { const result = await attemptAction(attempt.id, { type: "tick" }); if (result.data) setAttempt(result.data); else setMessage(result.error ?? "Could not check expiry"); }
+      catch { setMessage("Connection failed while checking expiry. Server will check it again before payment."); }
+    }), Math.max(0, deadline - Date.now()) + 50);
+    return () => clearTimeout(timer);
+  }, [attempt]);
 
-  return (
-    <>
-      {/* ----------------------------- Search card -------------------------- */}
-      <form
-        onSubmit={handleSendScout}
-        className="mt-10 w-full max-w-3xl rounded-3xl bg-white shadow-[0_24px_70px_-24px_rgba(23,23,23,0.25)] ring-1 ring-neutral-900/5 sm:mt-12"
-      >
-        <div className="flex items-start gap-4 px-5 pt-5 pb-6 sm:px-7">
-          <span className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[#c8f14f]">
-            <ScoutMark className="h-5 w-5 text-neutral-900" />
-          </span>
-          <div className="min-w-0 flex-1 text-left">
-            <label htmlFor="scout-query" className={FIELD_LABEL}>
-              What are you looking for?
-            </label>
-            <input
-              id="scout-query"
-              type="text"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Describe what you are looking for…"
-              className="mt-1.5 w-full bg-transparent text-lg font-semibold tracking-tight text-neutral-900 placeholder:text-neutral-300 focus:outline-none sm:text-xl"
-            />
-          </div>
-        </div>
-
-        <div className="h-px bg-neutral-100" />
-
-        <div className="flex flex-col gap-5 px-5 py-4 sm:flex-row sm:items-center sm:px-7">
-          {/* Price range filter */}
-          <div className="flex items-center gap-5 sm:gap-7">
-            <div>
-              <label htmlFor="min-price" className={FIELD_LABEL}>
-                Min price
-              </label>
-              <div className="mt-0.5 flex items-baseline text-[15px] font-semibold text-neutral-900">
-                <span>$</span>
-                <input
-                  id="min-price"
-                  inputMode="numeric"
-                  value={minPrice}
-                  onChange={(event) =>
-                    setMinPrice(handlePrice(event.target.value))
-                  }
-                  placeholder="0"
-                  className="w-14 bg-transparent font-semibold text-neutral-900 placeholder:font-normal placeholder:text-neutral-300 focus:outline-none"
-                />
-              </div>
-            </div>
-
-            <div className="h-9 w-px bg-neutral-200" />
-
-            <div>
-              <label htmlFor="max-price" className={FIELD_LABEL}>
-                Max price
-              </label>
-              <div className="mt-0.5 flex items-baseline text-[15px] font-semibold text-neutral-900">
-                <span>$</span>
-                <input
-                  id="max-price"
-                  inputMode="numeric"
-                  value={maxPrice}
-                  onChange={(event) =>
-                    setMaxPrice(handlePrice(event.target.value))
-                  }
-                  placeholder="Any"
-                  className="w-14 bg-transparent font-semibold text-neutral-900 placeholder:font-normal placeholder:text-neutral-300 focus:outline-none"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="hidden h-9 w-px bg-neutral-200 sm:ml-7 sm:block" />
-
-          {/* Decorative for now — no preferences backend yet */}
-          <button
-            type="button"
-            className="flex w-fit items-center gap-2 text-sm font-medium text-neutral-800 transition-colors hover:text-neutral-950 sm:ml-5"
-          >
-            <SlidersIcon className="h-4 w-4" />
-            Preferences
-          </button>
-
-          <button
-            type="submit"
-            className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#c8f14f] px-5 py-2.5 text-sm font-semibold text-neutral-900 transition hover:bg-[#bdef38] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#a4cd39] sm:ml-auto sm:w-auto"
-          >
-            Send Scout
-            <ArrowRightIcon className="h-4 w-4" />
-          </button>
-        </div>
-      </form>
-
-      {/* ----------------------------- Suggestions -------------------------- */}
-      <div className="mt-8 flex flex-wrap items-center justify-center gap-2.5 sm:gap-3">
-        <span className="text-sm text-neutral-400">Try asking for</span>
-        {SUGGESTIONS.map((suggestion) => (
-          <button
-            key={suggestion}
-            type="button"
-            onClick={() => setQuery(suggestion)}
-            className="flex items-center gap-2 rounded-full bg-white px-4 py-2 text-[13px] text-neutral-700 shadow-sm ring-1 ring-neutral-900/5 transition hover:text-neutral-950 hover:ring-neutral-900/10"
-          >
-            <ScoutMark className="h-3.5 w-3.5 text-[#a4cd39]" />
-            {suggestion}
-          </button>
-        ))}
-      </div>
-    </>
-  );
+  const ready = draft !== null && draft.goals.every(g => Number.isSafeInteger(g.qty) && (g.qty ?? 0) > 0) &&
+    checkAllocations(draft.shares, draft.budget, mandate.rolling7d).status === "ready" && (draft.goals.length < 2 || draft.partialAccepted);
+  const locked = busy || (attempt !== null && ["quote", "clarify"].includes(attempt.status));
+  return <div className="my-8 w-full max-w-5xl space-y-5">
+    {!signedIn && <p className="shop-panel">You can edit the demo here. <Link className="underline font-semibold" href="/login?next=/">Sign in</Link> or <Link className="underline font-semibold" href="/register?next=/">create an account</Link> to confirm authorization and use mock checkout.</p>}
+    <MandateForm initial={initialMandate} disabled={busy} onConfirmed={m => { setMandate(m); setConfirmed(!m.revoked); invalidate(); }} onDirty={() => { setConfirmed(false); invalidate(); }} />
+    <section className="shop-panel">
+      <div className="flex flex-wrap justify-between gap-3"><h2>2. Prepare your shopping list</h2><p className="shop-muted">Spent in 168h: HKD {spent.toFixed(2)} · Remaining: HKD {Math.max(0, mandate.rolling7d - spent).toFixed(2)}</p></div>
+      <p className="shop-muted mt-2">Mock catalogue: snacks and balloons. No guest count or quantity is assumed.</p>
+      <label className="mt-4 block">What do you need?<textarea value={query} maxLength={2000} disabled={busy} onChange={e => { setQuery(e.target.value); invalidate(); setDraft(null); }} /></label>
+      <div className="mt-3 flex flex-wrap gap-3"><button className="shop-primary" disabled={busy} onClick={() => {
+        invalidate(); const parsed = parseIntent(query); setMessage(parsed.reason);
+        setDraft(parsed.goals.length ? { text: query, goals: parsed.goals, budget: parsed.budgetHint ?? Math.min(350, mandate.perOrder), shares: newAllocations(parsed.goals.map(g => g.id)), partialAccepted: false } : null);
+      }}>Create editable list</button>
+      {["red balloons budget 350", "snacks budget 400"].map(text => <button key={text} className="shop-secondary" disabled={busy} onClick={() => { invalidate(); setQuery(text); setDraft(null); }}>{text}</button>)}</div>
+      <p className="shop-muted mt-3">{confirmed ? "Mandate confirmed." : "Confirm the mandate before searching."} Refunds do not restore the rolling 168-hour budget.</p>
+      {draft && <ShoppingList draft={draft} disabled={locked} ready={ready} confirmed={confirmed && signedIn} merchant={merchant} onMerchant={value => { invalidate(); setMerchant(value); }}
+        onChange={next => { invalidate(); setDraft(next); }} onSearch={goal => search(goal)} />}
+    </section>
+    {busy && <p role="status">Working on your request…</p>}
+    {message && <p role="status" className="shop-panel">{message}</p>}
+    {attempt && <>
+      <OfferList attempt={attempt} disabled={busy} onSelect={skuId => act({ type: "select", skuId })} />
+      <QuoteReview attempt={attempt} busy={busy} reviewOpen={reviewOpen} onReview={setReviewOpen} onEvent={act}
+        onPreferences={() => { const goal = draft?.goals.find(g => g.id === attempt.input.goalId); if (goal) search(goal, true); }} />
+      <TraceLog trace={attempt.trace} />
+    </>}
+  </div>;
 }

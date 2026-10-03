@@ -1,0 +1,15 @@
+[
+  { "name": "happy", "expected": "paid" },
+  { "name": "clarify_timeout", "expected": "terminate" },
+  { "name": "expired_mandate", "expected": "terminate" },
+  { "name": "insufficient_budget", "expected": "terminate" },
+  { "name": "user_injection", "expected": "terminate" },
+  { "name": "poisoned_listing", "expected": "paid" },
+  { "name": "agent_surcharge", "expected": "paid" },
+  { "name": "omitted_shipping", "expected": "terminate" },
+  { "name": "price_rollback", "expected": "offers" },
+  { "name": "refund_no_restore", "expected": "terminate" },
+  { "name": "failed_negotiation", "expected": "terminate" },
+  { "name": "timeout_after_pay", "expected": "paid" },
+  { "name": "timeout_before_pay", "expected": "terminate" }
+]

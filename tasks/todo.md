@@ -8,14 +8,14 @@ Source of truth for behavior: `prompt.md`. Order and decisions: `tasks/plan.md`.
 
 **Acceptance criteria:**
 
-- [ ] `npm test` runs Vitest once and exits 0
-- [ ] A smoke test imports a lib module path via `@/`
+- [x] `npm test` runs Vitest once and exits 0
+- [x] A smoke test imports a lib module path via `@/`
 
 **Verification:**
 
-- [ ] Tests pass: `npm test`
-- [ ] Build succeeds: not required for this task
-- [ ] Manual check: `package.json` scripts contain `test`
+- [x] Tests pass: `npm test`
+- [x] Build succeeds: not required for this task
+- [x] Manual check: `package.json` scripts contain `test`
 
 **Dependencies:** None
 
@@ -34,18 +34,18 @@ Source of truth for behavior: `prompt.md`. Order and decisions: `tasks/plan.md`.
 
 **Acceptance criteria:**
 
-- [ ] Shelf 200 × qty 2 with coupon 80 and shipping 30 returns line 400, merchandise 320, `cash_total` 350
-- [ ] `per_item` reads the line total before the coupon
-- [ ] Missing shipping is rejected by this function
-- [ ] When rewards are on, a gift of 100 makes `effective_cost = cash_total − 50`. When rewards are off, `effective_cost = cash_total`
-- [ ] `effective_cost` does not change `cash_total`
-- [ ] A non-HKD shelf converts with the fixed table and the result carries the rate timestamp
+- [x] Shelf 200 × qty 2 with coupon 80 and shipping 30 returns line 400, merchandise 320, `cash_total` 350
+- [x] `per_item` reads the line total before the coupon
+- [x] Missing shipping is rejected by this function
+- [x] When rewards are on, a gift of 100 makes `effective_cost = cash_total − 50`. When rewards are off, `effective_cost = cash_total`
+- [x] `effective_cost` does not change `cash_total`
+- [x] A non-HKD shelf converts with the fixed table and the result carries the rate timestamp
 
 **Verification:**
 
-- [ ] Tests pass: `npm test -- lib/money.test.ts lib/fx.test.ts`
-- [ ] Build succeeds: `npx tsc --noEmit`
-- [ ] Manual check: none
+- [x] Tests pass: `npm test -- lib/money.test.ts lib/fx.test.ts`
+- [x] Build succeeds: `npx tsc --noEmit`
+- [x] Manual check: none
 
 **Dependencies:** Task 1
 
@@ -64,19 +64,19 @@ Source of truth for behavior: `prompt.md`. Order and decisions: `tasks/plan.md`.
 
 **Acceptance criteria:**
 
-- [ ] Every offer has `sku_id`, `platform_id`, `merchant_id`, `category_id`, shelf, shipping, currency, rating, purchase count, `human_price`, `agent_price`, coupon, reward, and description or review text
-- [ ] `platform_id` and `merchant_id` are both stored
-- [ ] An offer whose description tells the agent to change the budget or pay is dropped
-- [ ] An offer with `agent_price` above `human_price` is dropped
-- [ ] An offer with no shipping is rejected, not treated as zero
-- [ ] At least one clean offer remains in the fixture set
-- [ ] One pair of clean offers is an exact score tie for a later test
+- [x] Every offer has `sku_id`, `platform_id`, `merchant_id`, `category_id`, shelf, shipping, currency, rating, purchase count, `human_price`, `agent_price`, coupon, reward, and description or review text
+- [x] `platform_id` and `merchant_id` are both stored
+- [x] An offer whose description tells the agent to change the budget or pay is dropped
+- [x] An offer with `agent_price` above `human_price` is dropped
+- [x] An offer with no shipping is rejected, not treated as zero
+- [x] At least one clean offer remains in the fixture set
+- [x] One pair of clean offers is an exact score tie for a later test
 
 **Verification:**
 
-- [ ] Tests pass: `npm test -- lib/catalog.test.ts`
-- [ ] Build succeeds: `npx tsc --noEmit`
-- [ ] Manual check: none
+- [x] Tests pass: `npm test -- lib/catalog.test.ts`
+- [x] Build succeeds: `npx tsc --noEmit`
+- [x] Manual check: none
 
 **Dependencies:** Task 1
 
@@ -90,9 +90,9 @@ Source of truth for behavior: `prompt.md`. Order and decisions: `tasks/plan.md`.
 
 ## Checkpoint: After Tasks 1-3
 
-- [ ] `npm test` passes
-- [ ] `npm run lint` passes
-- [ ] Money and catalog do not import React or the database
+- [x] `npm test` passes
+- [x] `npm run lint` passes
+- [x] Money and catalog do not import React or the database
 
 ## Task 4: Mandate record, defaults, and conflict routing
 
@@ -100,18 +100,18 @@ Source of truth for behavior: `prompt.md`. Order and decisions: `tasks/plan.md`.
 
 **Acceptance criteria:**
 
-- [ ] An unset mandate is manual confirm, one merchant per order, rewards included, and no expiry
-- [ ] An empty merchant allow list means every merchant except the deny list
-- [ ] Category ids that are not in the fixture tree fail validation
-- [ ] A request that conflicts with a valid mandate returns clarify and does not pay
-- [ ] An expired, revoked, or invalid mandate returns terminate
-- [ ] A preference cannot raise `per_item`, `per_order`, or the rolling limit
+- [x] An unset mandate is manual confirm, one merchant per order, rewards included, and no expiry
+- [x] An empty merchant allow list means every merchant except the deny list
+- [x] Category ids that are not in the fixture tree fail validation
+- [x] A request that conflicts with a valid mandate returns clarify and does not pay
+- [x] An expired, revoked, or invalid mandate returns terminate
+- [x] A preference cannot raise `per_item`, `per_order`, or the rolling limit
 
 **Verification:**
 
-- [ ] Tests pass: `npm test -- lib/mandate.test.ts`
-- [ ] Build succeeds: `npx tsc --noEmit`
-- [ ] Manual check: none
+- [x] Tests pass: `npm test -- lib/mandate.test.ts`
+- [x] Build succeeds: `npx tsc --noEmit`
+- [x] Manual check: none
 
 **Dependencies:** Task 1
 
@@ -128,18 +128,18 @@ Source of truth for behavior: `prompt.md`. Order and decisions: `tasks/plan.md`.
 
 **Acceptance criteria:**
 
-- [ ] “Party items” returns an editable list of snacks and balloons
-- [ ] Quantities are null until the caller sets them
-- [ ] “Red balloons” sets appearance on the balloon goal
-- [ ] A budget hint is stored and does not change the mandate limits
-- [ ] Text that tells the agent to ignore the mandate returns terminate
-- [ ] Two shopping goals return two goal objects
+- [x] “Party items” returns an editable list of snacks and balloons
+- [x] Quantities are null until the caller sets them
+- [x] “Red balloons” sets appearance on the balloon goal
+- [x] A budget hint is stored and does not change the mandate limits
+- [x] Text that tells the agent to ignore the mandate returns terminate
+- [x] Two shopping goals return two goal objects
 
 **Verification:**
 
-- [ ] Tests pass: `npm test -- lib/intent.test.ts`
-- [ ] Build succeeds: `npx tsc --noEmit`
-- [ ] Manual check: none
+- [x] Tests pass: `npm test -- lib/intent.test.ts`
+- [x] Build succeeds: `npx tsc --noEmit`
+- [x] Manual check: none
 
 **Dependencies:** Task 1
 
@@ -156,17 +156,17 @@ Source of truth for behavior: `prompt.md`. Order and decisions: `tasks/plan.md`.
 
 **Acceptance criteria:**
 
-- [ ] A new split starts with blank amounts
-- [ ] Search is blocked until every goal has an amount and the amounts fit the request budget
-- [ ] Unassigned remainder stays reserved
-- [ ] One goal cannot spend another goal’s share
-- [ ] The rolling 7-day limit still applies on top of the shares
+- [x] A new split starts with blank amounts
+- [x] Search is blocked until every goal has an amount and the amounts fit the request budget
+- [x] Unassigned remainder stays reserved
+- [x] One goal cannot spend another goal’s share
+- [x] The rolling 7-day limit still applies on top of the shares
 
 **Verification:**
 
-- [ ] Tests pass: `npm test -- lib/allocation.test.ts`
-- [ ] Build succeeds: `npx tsc --noEmit`
-- [ ] Manual check: none
+- [x] Tests pass: `npm test -- lib/allocation.test.ts`
+- [x] Build succeeds: `npx tsc --noEmit`
+- [x] Manual check: none
 
 **Dependencies:** Task 2, Task 5
 
@@ -179,8 +179,8 @@ Source of truth for behavior: `prompt.md`. Order and decisions: `tasks/plan.md`.
 
 ## Checkpoint: After Tasks 4-6
 
-- [ ] `npm test` passes
-- [ ] Parser output cannot change a mandate number
+- [x] `npm test` passes
+- [x] Parser output cannot change a mandate number
 
 ## Task 7: Rank top 3
 
@@ -188,19 +188,19 @@ Source of truth for behavior: `prompt.md`. Order and decisions: `tasks/plan.md`.
 
 **Acceptance criteria:**
 
-- [ ] Default weights are 0.35, 0.25, 0.15, 0.10, 0.15 and each result shows them
-- [ ] An explicit weight overrides a weight inferred from the text
-- [ ] A conflict between those two returns clarify
-- [ ] Cash weight uses `cash_total`. Reward changes only `effective_cost`, and only when rewards are on
-- [ ] A `sku_id` in the purchase history scores higher than the same offer without history
-- [ ] The result is one merchant and at most three offers
-- [ ] An exact tie returns clarify instead of an automatic winner
+- [x] Default weights are 0.35, 0.25, 0.15, 0.10, 0.15 and each result shows them
+- [x] An explicit weight overrides a weight inferred from the text
+- [x] A conflict between those two returns clarify
+- [x] Cash weight uses `cash_total`. Reward changes only `effective_cost`, and only when rewards are on
+- [x] A `sku_id` in the purchase history scores higher than the same offer without history
+- [x] The result is one merchant and at most three offers
+- [x] An exact tie returns clarify instead of an automatic winner
 
 **Verification:**
 
-- [ ] Tests pass: `npm test -- lib/rank.test.ts`
-- [ ] Build succeeds: `npx tsc --noEmit`
-- [ ] Manual check: none
+- [x] Tests pass: `npm test -- lib/rank.test.ts`
+- [x] Build succeeds: `npx tsc --noEmit`
+- [x] Manual check: none
 
 **Dependencies:** Task 2, Task 3, Task 4
 
@@ -217,17 +217,17 @@ Source of truth for behavior: `prompt.md`. Order and decisions: `tasks/plan.md`.
 
 **Acceptance criteria:**
 
-- [ ] The quote stores `cash_total`, items, shipping, currency, tender, reward terms, and both expiry clocks
-- [ ] Search timeout is 15 seconds unless the mandate max search time is lower
-- [ ] Clarify timeout is 120 seconds
-- [ ] A change to cash, items, shipping, currency, tender, or reward terms marks the confirm void
-- [ ] A confirm does not pass when `cash_total` exceeds `per_item`, `per_order`, the goal share, or the remaining 168-hour budget
+- [x] The quote stores `cash_total`, items, shipping, currency, tender, reward terms, and both expiry clocks
+- [x] Search timeout is 15 seconds unless the mandate max search time is lower
+- [x] Clarify timeout is 120 seconds
+- [x] A change to cash, items, shipping, currency, tender, or reward terms marks the confirm void
+- [x] A confirm does not pass when `cash_total` exceeds `per_item`, `per_order`, the goal share, or the remaining 168-hour budget
 
 **Verification:**
 
-- [ ] Tests pass: `npm test -- lib/quote.test.ts`
-- [ ] Build succeeds: `npx tsc --noEmit`
-- [ ] Manual check: none
+- [x] Tests pass: `npm test -- lib/quote.test.ts`
+- [x] Build succeeds: `npx tsc --noEmit`
+- [x] Manual check: none
 
 **Dependencies:** Task 2, Task 7
 
@@ -244,17 +244,17 @@ Source of truth for behavior: `prompt.md`. Order and decisions: `tasks/plan.md`.
 
 **Acceptance criteria:**
 
-- [ ] `book()` writes `cash_total` into `spent_7d` only after a successful pay
-- [ ] A refund does not reduce `spent_7d`
-- [ ] The window is the preceding 168 hours
-- [ ] Registration stores a vault id and an address id
-- [ ] The same `sku_id` purchased inside 72 hours is visible to the clarify check
+- [x] `book()` writes `cash_total` into `spent_7d` only after a successful pay
+- [x] A refund does not reduce `spent_7d`
+- [x] The window is the preceding 168 hours
+- [x] Registration stores a vault id and an address id
+- [x] The same `sku_id` purchased inside 72 hours is visible to the clarify check
 
 **Verification:**
 
-- [ ] Tests pass: `npm test -- lib/ledger.test.ts`
-- [ ] Build succeeds: `npx tsc --noEmit`
-- [ ] Manual check: a new registration row has both ids
+- [x] Tests pass: `npm test -- lib/ledger.test.ts`
+- [x] Build succeeds: `npx tsc --noEmit`
+- [x] Manual check: a new registration row has both ids
 
 **Dependencies:** Task 2
 
@@ -273,16 +273,16 @@ Source of truth for behavior: `prompt.md`. Order and decisions: `tasks/plan.md`.
 
 **Acceptance criteria:**
 
-- [ ] Accept leaves the coupon reserved and allows quote
-- [ ] Reject does not pay and returns the coupon to unused
-- [ ] The reason is one of: coupon gone, out of stock, or price no longer matches
-- [ ] A rejection does not terminate the whole attempt when another offer is clean
+- [x] Accept leaves the coupon reserved and allows quote
+- [x] Reject does not pay and returns the coupon to unused
+- [x] The reason is one of: coupon gone, out of stock, or price no longer matches
+- [x] A rejection does not terminate the whole attempt when another offer is clean
 
 **Verification:**
 
-- [ ] Tests pass: `npm test -- lib/negotiate.test.ts`
-- [ ] Build succeeds: `npx tsc --noEmit`
-- [ ] Manual check: none
+- [x] Tests pass: `npm test -- lib/negotiate.test.ts`
+- [x] Build succeeds: `npx tsc --noEmit`
+- [x] Manual check: none
 
 **Dependencies:** Task 2, Task 3
 
@@ -299,18 +299,18 @@ Source of truth for behavior: `prompt.md`. Order and decisions: `tasks/plan.md`.
 
 **Acceptance criteria:**
 
-- [ ] The call receives the vault id, address id, amount, currency, and expiry
-- [ ] The call does not accept a card number
-- [ ] Tender must be `card` and must be allowed by the mandate list
-- [ ] A timeout before any charge terminates
-- [ ] A second attempt with the same idempotency key does not book twice
-- [ ] A failed attempt does not call `book()`
+- [x] The call receives the vault id, address id, amount, currency, and expiry
+- [x] The call does not accept a card number
+- [x] Tender must be `card` and must be allowed by the mandate list
+- [x] A timeout before any charge terminates
+- [x] A second attempt with the same idempotency key does not book twice
+- [x] A failed attempt does not call `book()`
 
 **Verification:**
 
-- [ ] Tests pass: `npm test -- lib/pay.test.ts`
-- [ ] Build succeeds: `npx tsc --noEmit`
-- [ ] Manual check: none
+- [x] Tests pass: `npm test -- lib/pay.test.ts`
+- [x] Build succeeds: `npx tsc --noEmit`
+- [x] Manual check: none
 
 **Dependencies:** Task 8, Task 9
 
@@ -323,9 +323,9 @@ Source of truth for behavior: `prompt.md`. Order and decisions: `tasks/plan.md`.
 
 ## Checkpoint: After Tasks 7-11
 
-- [ ] `npm test` passes
-- [ ] `npx tsc --noEmit` passes
-- [ ] No pay test sends a PAN
+- [x] `npm test` passes
+- [x] `npx tsc --noEmit` passes
+- [x] No pay test sends a PAN
 
 ## Task 12: Attempt runner and trace
 
@@ -333,17 +333,17 @@ Source of truth for behavior: `prompt.md`. Order and decisions: `tasks/plan.md`.
 
 **Acceptance criteria:**
 
-- [ ] One trace id covers parse, mandate check, search, rank, negotiate, quote, and pay
-- [ ] Each row has the rule id and the numbers used
-- [ ] The runner returns clarify, terminate, or a quote ready to confirm
-- [ ] Tests pass a clock in. They do not wait 15 or 120 seconds
-- [ ] Rollback and terminate release the coupon
+- [x] One trace id covers parse, mandate check, search, rank, negotiate, quote, and pay
+- [x] Each row has the rule id and the numbers used
+- [x] The runner returns clarify, terminate, or a quote ready to confirm
+- [x] Tests pass a clock in. They do not wait 15 or 120 seconds
+- [x] Rollback and terminate release the coupon
 
 **Verification:**
 
-- [ ] Tests pass: `npm test -- lib/attempt.test.ts`
-- [ ] Build succeeds: `npx tsc --noEmit`
-- [ ] Manual check: none
+- [x] Tests pass: `npm test -- lib/attempt.test.ts`
+- [x] Build succeeds: `npx tsc --noEmit`
+- [x] Manual check: none
 
 **Dependencies:** Tasks 4 through 11
 
@@ -361,16 +361,16 @@ Source of truth for behavior: `prompt.md`. Order and decisions: `tasks/plan.md`.
 
 **Acceptance criteria:**
 
-- [ ] Overspend means `cash_total` broke a mandate, reward reduced cash, or shipping was omitted
-- [ ] The replay set includes one pass and the abnormal stops named in `prompt.md`: clarify timeout, expired mandate, insufficient budget, user injection, poisoned listing, agent surcharge, omitted shipping, price rollback, refund that does not restore budget, and failed negotiation
-- [ ] The reported overspend count is 0
-- [ ] The harness does not call a network model
+- [x] Overspend means `cash_total` broke a mandate, reward reduced cash, or shipping was omitted
+- [x] The replay set includes one pass and the abnormal stops named in `prompt.md`: clarify timeout, expired mandate, insufficient budget, user injection, poisoned listing, agent surcharge, omitted shipping, price rollback, refund that does not restore budget, and failed negotiation
+- [x] The reported overspend count is 0
+- [x] The harness does not call a network model
 
 **Verification:**
 
-- [ ] Tests pass: `npm test -- lib/harness.test.ts`
-- [ ] Build succeeds: `npx tsc --noEmit`
-- [ ] Manual check: the test output prints the overspend count
+- [x] Tests pass: `npm test -- lib/harness.test.ts`
+- [x] Build succeeds: `npx tsc --noEmit`
+- [x] Manual check: the test output prints the overspend count
 
 **Dependencies:** Task 12
 
@@ -384,9 +384,9 @@ Source of truth for behavior: `prompt.md`. Order and decisions: `tasks/plan.md`.
 
 ## Checkpoint: After Tasks 12-13
 
-- [ ] `npm test` passes
-- [ ] Overspend count is 0
-- [ ] Do not start the screens if this checkpoint fails
+- [x] `npm test` passes
+- [x] Overspend count is 0
+- [x] Do not start the screens if this checkpoint fails
 
 ## Task 14: Remove false landing claims
 
@@ -394,15 +394,15 @@ Source of truth for behavior: `prompt.md`. Order and decisions: `tasks/plan.md`.
 
 **Acceptance criteria:**
 
-- [ ] The landing page does not state a shopper count
-- [ ] It does not say checkout is secure
-- [ ] It does not say results are unsponsored
+- [x] The landing page does not state a shopper count
+- [x] It does not say checkout is secure
+- [x] It does not say results are unsponsored
 
 **Verification:**
 
-- [ ] Tests pass: no new test required
-- [ ] Build succeeds: `npm run build`
-- [ ] Manual check: load `/` and read the footer
+- [x] Tests pass: no new test required
+- [x] Build succeeds: `npm run build`
+- [x] Manual check: load `/` and read the footer
 
 **Dependencies:** None
 
@@ -418,17 +418,17 @@ Source of truth for behavior: `prompt.md`. Order and decisions: `tasks/plan.md`.
 
 **Acceptance criteria:**
 
-- [ ] The form includes every field listed in `prompt.md`
-- [ ] Defaults match Task 4
-- [ ] The parser can fill the form from the request text
-- [ ] Search stays disabled until the user confirms the form
-- [ ] Invalid numbers are shown on the field
+- [x] The form includes every field listed in `prompt.md`
+- [x] Defaults match Task 4
+- [x] The parser can fill the form from the request text
+- [x] Search stays disabled until the user confirms the form
+- [x] Invalid numbers are shown on the field
 
 **Verification:**
 
-- [ ] Tests pass: `npm test`
-- [ ] Build succeeds: `npm run build`
-- [ ] Manual check: submit an empty per-order limit and see the validation message
+- [x] Tests pass: `npm test`
+- [x] Build succeeds: `npm run build`
+- [x] Manual check: submit an empty per-order limit and see the validation message
 
 **Dependencies:** Task 4, Task 5
 
@@ -445,16 +445,16 @@ Source of truth for behavior: `prompt.md`. Order and decisions: `tasks/plan.md`.
 
 **Acceptance criteria:**
 
-- [ ] “Party items” shows snacks and balloons
-- [ ] Quantities are empty
-- [ ] Search does not run until the user sets quantities
-- [ ] Two goals show blank share inputs and do not search until the shares fit
+- [x] “Party items” shows snacks and balloons
+- [x] Quantities are empty
+- [x] Search does not run until the user sets quantities
+- [x] Two goals show blank share inputs and do not search until the shares fit
 
 **Verification:**
 
-- [ ] Tests pass: `npm test`
-- [ ] Build succeeds: `npm run build`
-- [ ] Manual check: the party-items demo list appears with empty quantities
+- [x] Tests pass: `npm test`
+- [x] Build succeeds: `npm run build`
+- [x] Manual check: the party-items demo list appears with empty quantities
 
 **Dependencies:** Task 5, Task 6, Task 15
 
@@ -471,16 +471,16 @@ Source of truth for behavior: `prompt.md`. Order and decisions: `tasks/plan.md`.
 
 **Acceptance criteria:**
 
-- [ ] The screen shows at most three offers from one merchant
-- [ ] Each offer shows the weight breakdown, `cash_total`, and `effective_cost`
-- [ ] The trace id and each step’s reason are visible
-- [ ] Clicking an offer selects it and does not pay
+- [x] The screen shows at most three offers from one merchant
+- [x] Each offer shows the weight breakdown, `cash_total`, and `effective_cost`
+- [x] The trace id and each step’s reason are visible
+- [x] Clicking an offer selects it and does not pay
 
 **Verification:**
 
-- [ ] Tests pass: `npm test`
-- [ ] Build succeeds: `npm run build`
-- [ ] Manual check: run the demo search and read the trace
+- [x] Tests pass: `npm test`
+- [x] Build succeeds: `npm run build`
+- [x] Manual check: run the demo search and read the trace
 
 **Dependencies:** Task 12, Task 16
 
@@ -498,18 +498,18 @@ Source of truth for behavior: `prompt.md`. Order and decisions: `tasks/plan.md`.
 
 **Acceptance criteria:**
 
-- [ ] A tie asks the user to choose
-- [ ] Manual mode requires a confirm click on the quote
-- [ ] Auto mode pays only when one offer is strictly first and no clarify is open
-- [ ] A cash move from 340 to 360 voids the confirm. Decline returns to search and the coupon is unused
-- [ ] A confirm that would make cash 410 against a 400 per-order limit is rejected
-- [ ] Clarify with no answer within the injected timeout terminates
+- [x] A tie asks the user to choose
+- [x] Manual mode requires a confirm click on the quote
+- [x] Auto mode pays only when one offer is strictly first and no clarify is open
+- [x] A cash move from 340 to 360 voids the confirm. Decline returns to search and the coupon is unused
+- [x] A confirm that would make cash 410 against a 400 per-order limit is rejected
+- [x] Clarify with no answer within the injected timeout terminates
 
 **Verification:**
 
-- [ ] Tests pass: `npm test`
-- [ ] Build succeeds: `npm run build`
-- [ ] Manual check: walk the price-change decline and the 410 rejection
+- [x] Tests pass: `npm test`
+- [x] Build succeeds: `npm run build`
+- [x] Manual check: walk the price-change decline and the 410 rejection
 
 **Dependencies:** Task 8, Task 10, Task 11, Task 17
 
@@ -527,15 +527,15 @@ Source of truth for behavior: `prompt.md`. Order and decisions: `tasks/plan.md`.
 
 **Acceptance criteria:**
 
-- [ ] `/account` shows the vault id and address id
-- [ ] The page states that a refund does not restore the preceding 168-hour spend
-- [ ] `spent_7d` on that page matches the ledger
+- [x] `/account` shows the vault id and address id
+- [x] The page states that a refund does not restore the preceding 168-hour spend
+- [x] `spent_7d` on that page matches the ledger
 
 **Verification:**
 
-- [ ] Tests pass: `npm test`
-- [ ] Build succeeds: `npm run build`
-- [ ] Manual check: register, open `/account`, and read both ids and the refund sentence
+- [x] Tests pass: `npm test`
+- [x] Build succeeds: `npm run build`
+- [x] Manual check: register, open `/account`, and read both ids and the refund sentence
 
 **Dependencies:** Task 9
 
@@ -547,8 +547,8 @@ Source of truth for behavior: `prompt.md`. Order and decisions: `tasks/plan.md`.
 
 ## Checkpoint: Demo
 
-- [ ] `npm test` passes
-- [ ] `npm run lint` and `npx tsc --noEmit` pass
-- [ ] `npm run build` passes
-- [ ] The demo script in `tasks/plan.md` can be clicked through
+- [x] `npm test` passes
+- [x] `npm run lint` and `npx tsc --noEmit` pass
+- [x] `npm run build` passes
+- [x] The demo script in `tasks/plan.md` can be clicked through
 - [ ] Stop for human review
