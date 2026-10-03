@@ -64,6 +64,32 @@ test("the cheapest named card wins when the form lists it", () => {
   expect(rankOffers([offer], goal, mandate, []).offers[0]).toMatchObject({ tender: "hsbc-visa", money: { cardOff: 40, cashTotal: 260 } });
   expect(rankOffers([offer], goal, { ...mandate, tenders: ["citi-mastercard", "wallet"] }, []).offers[0]).toMatchObject({ tender: "citi-mastercard", money: { cardOff: 10, cashTotal: 290 } });
 });
+test("a generic balloon request ranks the category with the saved comparison", () => {
+  const generic = { ...parseIntent("balloon").goals[0], qty: 1 };
+  const ranked = rankOffers(loadCatalog().offers, generic, defaultMandate(), []);
+  expect(ranked.status).not.toBe("terminate");
+  expect(ranked.offers.length).toBeGreaterThan(0);
+  expect(ranked.offers.every(row => row.offer.category_id === "balloons")).toBe(true);
+});
+test("a color with no catalogue rows ranks the rest of the category", () => {
+  const blue = { ...parseIntent("balloon").goals[0], qty: 1, appearance: "blue" };
+  const ranked = rankOffers(loadCatalog().offers, blue, defaultMandate(), []);
+  expect(ranked.status).not.toBe("terminate");
+  expect(ranked.offers.every(row => row.offer.appearance === "red")).toBe(true);
+  expect(ranked.reason).toContain("blue");
+  expect(ranked.reason).toContain("saved comparison");
+});
+test("red balloons stay on red rows", () => {
+  const ranked = rankOffers(loadCatalog().offers, goal, defaultMandate(), []);
+  expect(ranked.offers.every(row => row.offer.appearance === "red")).toBe(true);
+  expect(ranked.reason).not.toContain("saved comparison");
+});
+test("an empty category names the mandate limits", () => {
+  const empty = rankOffers([], goal, defaultMandate(), []);
+  expect(empty.status).toBe("terminate");
+  expect(empty.reason).toContain("limits");
+  expect(empty.reason).not.toContain("No clean matching");
+});
 test("equal best scores across merchants also pause automatic selection", () => {
   const offer = loadCatalog().offers[0];
   expect(rankOffers([offer, { ...offer, merchant_id: "another", sku_id: "another-sku" }], goal, defaultMandate(), []).status).toBe("clarify");

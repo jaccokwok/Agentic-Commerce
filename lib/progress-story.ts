@@ -20,7 +20,8 @@ function lineFor(row: TraceRow, seen: { scored: boolean; limited: boolean; dropp
   if (rule === "listing_injection" || rule === "agent_surcharge" || rule === "shipping_missing" || rule === "invalid_offer") return seen.dropped ? null : "Auditor drops a listing that fails the rules.";
   if (rule === "weights") return "Shopper decides how to compare the offers.";
   if (rule === "scored") return seen.scored ? null : "Shopper scores the offers.";
-  if (rule === "one_merchant_top3") return row.numbers.winner ? `Shopper leads with ${row.numbers.winner}.` : "Shopper keeps the best offers from one merchant.";
+  if (rule === "max_qty") return row.reason;
+  if (rule === "one_merchant_top3") return row.reason.includes("saved comparison") || !row.numbers.winner ? row.reason : `Shopper leads with ${row.numbers.winner}.`;
   if (row.from === "merchant") {
     if (rule === "accepted" || row.numbers.status === "accepted") return "Merchant accepts the catalogue price.";
     if (rule === "counter" || row.numbers.status === "counter") return "Merchant sends one counter-offer.";

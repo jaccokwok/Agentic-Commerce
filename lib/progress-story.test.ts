@@ -28,6 +28,20 @@ test("a quote attempt becomes a short role story", () => {
   ]);
 });
 
+test("as many as possible names the quantity that fits", () => {
+  const lines = progressStory([
+    row({ step: "search", ruleId: "max_qty", reason: "Buying 5, the most that fits the mandate." }),
+  ]);
+  expect(lines[0]).toContain("5");
+});
+test("a relaxed ranking names the missing color in the story", () => {
+  const lines = progressStory([
+    row({ step: "rank", ruleId: "one_merchant_top3", reason: "No blue balloons are in the catalogue. Ranked all balloons with the saved comparison.", numbers: { winner: "party-shop-balloons-1" } }),
+  ]);
+  expect(lines[0]).toContain("blue");
+  expect(lines[0]).toContain("saved comparison");
+});
+
 test("a mandate conflict names the limit in the story", () => {
   const lines = progressStory([
     row({ step: "mandate", ruleId: "request_conflict", from: "mandate", to: "shopper", numbers: { status: "clarify", reason: "The request budget of 500 is above the per-order limit of 400." } }),

@@ -1,12 +1,12 @@
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { CATEGORY_IDS, type Offer } from "@/lib/catalog";
-import { parseIntent, intentFromDraft, type Goal, type Intent } from "@/lib/intent";
+import { parseIntent, intentFromDraft, statedQuantity, wantsAsMany, type Goal, type Intent } from "@/lib/intent";
 import { complete, proposeTurn } from "@/lib/complete";
-import type { Mandate } from "@/lib/mandate";
+import { allows, type Mandate } from "@/lib/mandate";
 import { checkAllocations } from "@/lib/allocation";
 import { rankOffers, resolveWeights, DEFAULT_WEIGHTS, type RankedOffer, type Weights } from "@/lib/rank";
-import { createQuote, checkQuote, quoteChanged, searchDeadline, clarifyDeadline, allowedTenders, type Quote } from "@/lib/quote";
+import { createQuote, checkQuote, fitQuantity, quoteChanged, searchDeadline, clarifyDeadline, allowedTenders, type Quote } from "@/lib/quote";
 import { releaseCoupon, type CouponState } from "@/lib/negotiate";
 import { historySkus, recentSkus, spent7d, spentShare, spentRequest, receipt } from "@/lib/ledger";
 import type { PayContext } from "@/lib/pay";
@@ -40,6 +40,12 @@ function clarify(a: Attempt, issue: Attempt["issue"], reason: string, now: numbe
 function remaining(a: Attempt, ctx: AttemptContext) {
   return { rolling: a.input.mandate.rolling7d - spent7d(a.input.userId, ctx.now(), ctx.database),
     share: (a.input.shares[a.input.goalId] ?? 0) - spentShare(a.input.userId, a.input.requestId, a.input.goalId, ctx.database) };
+}
+function poolReason(label: string, rejected: { sku: string; reason: string }[], candidates: Offer[], categoryId: string, fallback: string): string {
+  const told = [...new Set(rejected.filter(row => candidates.find(offer => offer.sku_id === row.sku)?.category_id === categoryId).map(row => row.reason))];
+  if (!told.length || told.some(reason => !reason.includes("not allowed by the mandate"))) return fallback;
+  const list = told.map(reason => reason.match(/Allow list: ([^.]+)\./)?.[1]).find(Boolean);
+  return list && told.every(reason => reason.includes("Allow list:")) ? `No ${label.toLowerCase()} match the allow list (${list}).` : told[0];
 }
 function skip(a: Attempt, reason: string) {
   a.coupon = releaseCoupon(); a.status = "offers"; a.quote = null; a.reason = reason;
@@ -145,6 +151,14 @@ export async function runAttempt(input: AttemptInput, ctx: AttemptContext): Prom
   const catalog = await filterCatalog(a, ctx.catalog, ctx.now());
   const limits = remaining(a, ctx);
   const candidates = catalog.kept.filter(o => !input.merchantId || o.merchant_id === input.merchantId);
+  if (wantsAsMany(input.text) && statedQuantity(input.text) == null) {
+    const room = candidates.filter(offer => offer.category_id === goal.categoryId && allows(input.mandate, offer.merchant_id, offer.category_id, offer.platform_id));
+    const qty = room.reduce((max, offer) => Math.max(max, fitQuantity(offer, input.mandate, limits.share, limits.rolling, ctx.now())), 0);
+    if (qty >= 1) {
+      goal.qty = qty;
+      log(a.trace, "search", "max_qty", `Buying ${qty}, the most that fits the mandate.`, { qty }, ctx.now());
+    }
+  }
   const limited = (await deliver(a.trace, { traceId: a.trace.id, from: "shopper", to: "mandate", type: "filter_limits", body: { offers: candidates, qty: goal.qty, mandate: input.mandate, share: limits.share, rolling: limits.rolling, now: ctx.now() } }, ctx.now(), "search")).body as { rejected: { sku: string; reason: string }[]; allowed: string[] };
   for (const row of limited.rejected) log(a.trace, "search", "offer_limit", row.reason, { sku: row.sku }, ctx.now());
   const eligible = candidates.filter(o => limited.allowed.includes(o.sku_id));
@@ -155,8 +169,9 @@ export async function runAttempt(input: AttemptInput, ctx: AttemptContext): Prom
   const w = preferences.weights;
   log(a.trace, "rank", "weights", "Shares used for this ranking", { weights: `relevance ${w.relevance}, cash ${w.cash}, rating ${w.rating}, purchases ${w.purchases}, history ${w.history}` }, ctx.now());
   for (const row of ranked.compared) log(a.trace, "rank", "scored", row.sku, { sku: row.sku, cash: row.cash, tender: row.tender, score: row.score, parts: row.parts }, ctx.now());
-  log(a.trace, "rank", "one_merchant_top3", ranked.reason, { offers: a.offers.length, topScore: a.offers[0]?.score ?? null, winner: a.offers[0]?.offer.sku_id ?? null }, ctx.now());
-  if (ranked.status === "terminate") return stop(a, ranked.reason, ctx.now());
+  const rankedReason = ranked.status === "terminate" ? poolReason(goal.label, limited.rejected, candidates, goal.categoryId, ranked.reason) : ranked.reason;
+  log(a.trace, "rank", "one_merchant_top3", rankedReason, { offers: a.offers.length, topScore: a.offers[0]?.score ?? null, winner: a.offers[0]?.offer.sku_id ?? null }, ctx.now());
+  if (ranked.status === "terminate") return stop(a, rankedReason, ctx.now());
   if (ranked.status === "clarify") return clarify(a, "tie", ranked.reason, ctx.now());
   await bargain(a, a.offers.map(choice => choice.offer), ctx, "stop");
   if (a.status === "quote" && input.mandate.confirmMode === "auto") return advanceAttempt(a, { type: "confirm", version: a.quoteVersion }, ctx);

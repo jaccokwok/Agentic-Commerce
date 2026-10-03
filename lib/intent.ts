@@ -42,6 +42,9 @@ export function parseIntent(text: string): Intent {
     reason: goals.length ? "Catalogue request from the sentence." : "Mock catalogue supports snacks and balloons. Please edit the request." };
 }
 
+export function wantsAsMany(text: string): boolean {
+  return /as many\b[\s\S]{0,48}\b(?:as possible|within the budget)|尽可能多|越多越好/i.test(text);
+}
 export function statedQuantity(text: string): number | null {
   const named = text.match(/(?:^|[^\d])(\d+)\s*(?:x|×)?\s*(?:red\s+|blue\s+)?(?:balloons?|snacks?|气球|零食)/i);
   const labeled = text.match(/(?:qty|quantity|数量)\s*[:=]?\s*(\d+)/i);

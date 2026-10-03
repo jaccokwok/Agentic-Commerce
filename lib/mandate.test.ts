@@ -6,6 +6,9 @@ test("unset mandate has conservative approved defaults", () => {
   expect(m).toMatchObject({ confirmMode: "manual", oneMerchant: true, includeRewards: true, expiresAt: null });
   expect(allows(m, "any-merchant", "snacks")).toBe(true);
   expect(allows({ ...m, merchantDeny: ["blocked"] }, "blocked", "snacks")).toBe(false);
+  expect(allows({ ...m, merchantAllow: ["taobao"] }, "party-shop", "balloons", "taobao")).toBe(true);
+  expect(allows({ ...m, merchantAllow: ["taobao"] }, "hk-party", "balloons", "hktvmall")).toBe(false);
+  expect(allows({ ...m, merchantDeny: ["taobao"] }, "party-shop", "balloons", "taobao")).toBe(false);
 });
 test("invalid, revoked and expired terminate; request conflict clarifies", () => {
   expect(validateMandate({ ...m, categoryAllow: ["invented"] })).not.toHaveLength(0);

@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { parseIntent, statedQuantity } from "@/lib/intent";
+import { parseIntent, statedQuantity, wantsAsMany } from "@/lib/intent";
 
 test("vague party request becomes two editable goals, quantities remain blank", () => {
   const intent = parseIntent("party items for 8, red balloons, budget 350");
@@ -19,4 +19,8 @@ test("a guest count or a budget is not a quantity", () => {
   expect(statedQuantity("party items for 8, red balloons, budget 350")).toBe(null);
   expect(statedQuantity("3 red balloons")).toBe(3);
   expect(statedQuantity("snacks qty: 2")).toBe(2);
+  expect(wantsAsMany("as many balloon as possible")).toBe(true);
+  expect(wantsAsMany("as many balloon as possible within the budget")).toBe(true);
+  expect(wantsAsMany("3 red balloons")).toBe(false);
+  expect(wantsAsMany("party items for 8")).toBe(false);
 });

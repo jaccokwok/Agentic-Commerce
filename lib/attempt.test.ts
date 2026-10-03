@@ -18,6 +18,28 @@ function setup() {
   return { ctx, input };
 }
 afterEach(() => databases.splice(0).forEach(d => d.close()));
+test("as many as possible buys the most balloons the budget allows", async () => {
+  const { ctx, input } = setup();
+  const attempt = await runAttempt({ ...input, text: "as many balloon as possible", goals: [{ ...parseIntent("balloon").goals[0], qty: 1 }], shares: { balloons: 400 }, budget: 400, mandate: { ...input.mandate, merchantAllow: ["taobao"] } }, ctx);
+  expect(attempt.status).toBe("quote");
+  expect(attempt.input.goals[0].qty).toBe(5);
+  expect(attempt.quote?.items[0].qty).toBe(5);
+  expect(attempt.quote?.cashTotal).toBeLessThanOrEqual(400);
+  expect(attempt.quote?.merchantId).toBe("party-shop");
+  expect(attempt.reason).not.toContain("left no");
+});
+test("a stated count wins over as many as possible", async () => {
+  const { ctx, input } = setup();
+  const attempt = await runAttempt({ ...input, text: "as many as possible, 3 red balloons", goals: [{ ...parseIntent("red balloons").goals[0], qty: 3 }] }, ctx);
+  expect(attempt.quote?.items[0].qty).toBe(3);
+});
+test("an allow list that matches no shop names that list", async () => {
+  const { ctx, input } = setup();
+  const attempt = await runAttempt({ ...input, text: "balloon", goals: [{ ...parseIntent("balloon").goals[0], qty: 1 }], mandate: { ...input.mandate, merchantAllow: ["nowhere"] } }, ctx);
+  expect(attempt.status).toBe("terminate");
+  expect(attempt.reason).toContain("nowhere");
+  expect(attempt.reason).not.toContain("left no");
+});
 test("one trace covers every step; selecting never pays and manual confirm books", async () => {
   const { ctx, input } = setup();
   const attempt = await runAttempt(input, ctx);

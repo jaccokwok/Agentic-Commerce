@@ -43,11 +43,27 @@ export function checkQuote(q: Quote, m: Mandate, shareRemaining: number, rolling
   if (now >= q.expiresAt) return { status: "terminate", reason: "Quote expired" };
   if (!(PAY_TENDERS as readonly string[]).includes(q.tender)) return { status: "terminate", reason: "Tender is not an allowed mock card or wallet" };
   if (!allowedTenders(m).includes(q.tender as PayTender)) return { status: "terminate", reason: "Tender is not an allowed mock card or wallet" };
-  if (!allows(m, q.merchantId, q.categoryId)) return { status: "terminate", reason: "Merchant or category is disallowed" };
+  if (!allows(m, q.merchantId, q.categoryId, q.platformId)) {
+    const named = q.platformId && q.platformId !== q.merchantId ? `${q.merchantId} (${q.platformId})` : q.merchantId;
+    const categoryBlocked = m.categoryDeny.includes(q.categoryId) || (m.categoryAllow.length > 0 && !m.categoryAllow.includes(q.categoryId));
+    const list = m.merchantAllow.length ? ` Allow list: ${m.merchantAllow.join(", ")}.` : "";
+    return { status: "terminate", reason: categoryBlocked ? `Category ${q.categoryId} is not allowed by the mandate.` : `Merchant ${named} is not allowed by the mandate.${list}` };
+  }
   if (q.items.some(i => i.lineTotal > m.perItem) || q.cashTotal > m.perOrder || q.cashTotal > shareRemaining || q.cashTotal > rollingRemaining) {
     return { status: "terminate", reason: "Cash or pre-coupon line exceeds a mandatory spending limit" };
   }
   const cardOff = q.cardOff ?? 0;
   if (!Number.isFinite(q.cashTotal) || q.shipping < 0 || cardOff < 0 || q.cashTotal !== Math.round((q.merchandise - cardOff + q.shipping) * 100) / 100) return { status: "terminate", reason: "Invalid quote money" };
   return { status: "ready", reason: "Pre-coupon line, cash, goal share and 168-hour budget pass" };
+}
+export function fitQuantity(offer: Offer, m: Mandate, share: number, rolling: number, now: number): number {
+  const shelf = toHKD(offer.shelf, offer.currency).amount;
+  if (!(shelf > 0)) return 0;
+  const cap = Math.min(10000, Math.max(1, Math.floor(m.perItem / shelf)));
+  let best = 0;
+  for (let qty = 1; qty <= cap; qty++) {
+    if (checkQuote(createQuote(offer, qty, m, now), m, share, rolling, now).status !== "ready") break;
+    best = qty;
+  }
+  return best;
 }

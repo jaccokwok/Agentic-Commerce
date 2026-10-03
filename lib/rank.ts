@@ -33,9 +33,7 @@ export function choosePrice(offer: Offer, qty: number, m: Mandate) {
   const choices = (tenders.length ? tenders : ["card" as const]).map(tender => ({ tender, money: offerMoney(offer, qty, m.includeRewards, tenders.length ? tender : undefined) }));
   return choices.reduce((chosen, next) => next.money.cashTotal < chosen.money.cashTotal ? next : chosen);
 }
-export function rankOffers(offers: Offer[], goal: Goal, m: Mandate, history: string[], weights = DEFAULT_WEIGHTS) {
-  const candidates = offers.filter(o => o.category_id === goal.categoryId && allows(m, o.merchant_id, o.category_id) &&
-    (!goal.brand || o.brand.toLowerCase() === goal.brand.toLowerCase()) && (!goal.appearance || o.appearance === goal.appearance));
+function rankPool(candidates: Offer[], goal: Goal, m: Mandate, history: string[], weights: Weights) {
   const priced = candidates.map(offer => ({ offer, ...choosePrice(offer, goal.qty ?? 1, m) }));
   const maxCash = Math.max(1, ...priced.map(o => o.money.cashTotal));
   const maxPurchases = Math.max(1, ...priced.map(o => o.offer.purchase_count));
@@ -51,6 +49,17 @@ export function rankOffers(offers: Offer[], goal: Goal, m: Mandate, history: str
   const tied = scored.length > 1 && Math.abs(scored[0].score - scored[1].score) < 1e-10;
   const compared = scored.map(row => ({ sku: row.offer.sku_id, merchant: row.offer.merchant_id, cash: row.money.cashTotal, tender: row.tender, score: row.score,
     parts: `relevance ${row.breakdown.relevance.toFixed(4)}, cash ${row.breakdown.cash.toFixed(4)}, rating ${row.breakdown.rating.toFixed(4)}, purchases ${row.breakdown.purchases.toFixed(4)}, history ${row.breakdown.history.toFixed(4)}, reward ${row.rewardBonus.toFixed(4)}` }));
-  return { status: !top.length ? "terminate" as const : tied ? "clarify" as const : "ready" as const, offers: top, compared,
-    reason: !top.length ? "No clean matching offers" : tied ? `Equal scores for ${scored[0].offer.name} and ${scored[1].offer.name}. Choose one.` : "Top offers for one goal and one merchant" };
+  const choice = tied ? `Equal scores for ${scored[0].offer.name} and ${scored[1].offer.name}. Choose one.` : "Top offers for one goal and one merchant";
+  return { status: !top.length ? "terminate" as const : tied ? "clarify" as const : "ready" as const, offers: top, compared, choice };
+}
+export function rankOffers(offers: Offer[], goal: Goal, m: Mandate, history: string[], weights = DEFAULT_WEIGHTS) {
+  const category = offers.filter(o => o.category_id === goal.categoryId && allows(m, o.merchant_id, o.category_id, o.platform_id));
+  const strict = category.filter(o => (!goal.brand || o.brand.toLowerCase() === goal.brand.toLowerCase()) && (!goal.appearance || o.appearance === goal.appearance));
+  const relaxed = !strict.length && category.length > 0;
+  const ranked = rankPool(relaxed ? category : strict, goal, m, history, weights);
+  if (!ranked.offers.length) return { status: "terminate" as const, offers: [], compared: [], reason: `The mandate limits left no ${goal.label.toLowerCase()} to rank.` };
+  const named = [goal.appearance, goal.brand].filter(Boolean).join(" ");
+  const fallback = `No ${named} ${goal.label.toLowerCase()} are in the catalogue. Ranked all ${goal.label.toLowerCase()} with the saved comparison.`;
+  const reason = relaxed ? ranked.status === "clarify" ? `${fallback} ${ranked.choice}` : fallback : ranked.choice;
+  return { status: ranked.status, offers: ranked.offers, compared: ranked.compared, reason };
 }

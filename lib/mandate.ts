@@ -30,8 +30,11 @@ export function validateMandate(m: Mandate): string[] {
   return errors;
 }
 
-export function allows(m: Mandate, merchant: string, category: string): boolean {
-  return !m.merchantDeny.includes(merchant) && (!m.merchantAllow.length || m.merchantAllow.includes(merchant)) &&
+function namesMerchant(ids: string[], merchant: string, platform?: string): boolean {
+  return ids.includes(merchant) || (platform !== undefined && ids.includes(platform));
+}
+export function allows(m: Mandate, merchant: string, category: string, platform?: string): boolean {
+  return !namesMerchant(m.merchantDeny, merchant, platform) && (!m.merchantAllow.length || namesMerchant(m.merchantAllow, merchant, platform)) &&
     !m.categoryDeny.includes(category) && (!m.categoryAllow.length || m.categoryAllow.includes(category));
 }
 
