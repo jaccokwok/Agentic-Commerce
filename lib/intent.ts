@@ -39,5 +39,14 @@ export function parseIntent(text: string): Intent {
   const goals = categories.filter(c => c.matched).map(c => ({ id: c.id, categoryId: c.id, label: c.label, qty: null, brand, appearance: c.id === "balloons" ? appearance : null }));
   const budget = text.match(/(?:budget|预算)\s*[:=]?\s*(?:HKD\s*|\$\s*)?(\d+(?:\.\d+)?)/i);
   return { status: goals.length ? "ready" : "clarify", goals, budgetHint: budget ? Number(budget[1]) : null,
-    reason: goals.length ? "Editable list only. Set quantities and shares before search." : "Mock catalogue supports snacks and balloons. Please edit the request." };
+    reason: goals.length ? "Catalogue request from the sentence." : "Mock catalogue supports snacks and balloons. Please edit the request." };
+}
+
+export function statedQuantity(text: string): number | null {
+  const named = text.match(/(?:^|[^\d])(\d+)\s*(?:x|×)?\s*(?:red\s+|blue\s+)?(?:balloons?|snacks?|气球|零食)/i);
+  const labeled = text.match(/(?:qty|quantity|数量)\s*[:=]?\s*(\d+)/i);
+  const raw = named?.[1] ?? labeled?.[1];
+  if (!raw) return null;
+  const qty = Number(raw);
+  return Number.isSafeInteger(qty) && qty >= 1 && qty <= 10000 ? qty : null;
 }

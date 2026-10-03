@@ -3,6 +3,9 @@
     "ppt": {
       "command": "/Users/bono/.local/bin/uvx",
       "args": ["--from", "office-powerpoint-mcp-server", "--with", "mcp<2", "ppt_mcp_server"]
+    },
+    "figma": {
+      "url": "https://mcp.figma.com/mcp"
     }
   }
 }

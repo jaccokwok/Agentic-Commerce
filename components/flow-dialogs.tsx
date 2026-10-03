@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, type ReactNode } from "react";
 
-export default function FlowDialog({ title, children, onClose }: { title: string; children: ReactNode; onClose: () => void }) {
+export default function FlowDialog({ title, children, onClose, closeLabel = "Close" }: { title: string; children: ReactNode; onClose: () => void; closeLabel?: string }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const dialog = ref.current;
@@ -12,6 +12,6 @@ export default function FlowDialog({ title, children, onClose }: { title: string
   return <dialog ref={ref} aria-labelledby="flow-title" className="flow-dialog" onCancel={event => { event.preventDefault(); onClose(); }}>
     <h2 id="flow-title">{title}</h2>
     {children}
-    <button type="button" className="shop-secondary mt-4" onClick={onClose}>Close / decline</button>
+    <button type="button" className="shop-secondary mt-4" onClick={onClose}>{closeLabel}</button>
   </dialog>;
 }
