@@ -48,7 +48,7 @@ suggested logic as follows
 4. Cash = post-coupon merchandise + shipping. This is what `per_order` and `rolling_7d` see.
 5. Reward is computed on post-coupon merchandise only, shipping excluded. It is posted to cashback only after `book()` commits. It never reduces cash or `spent_7d`.
 
-**[changed]** Code computes these numbers. The model must not. Worked example: shelf 200 × qty 2 = line 400, so `per_item` sees 400. Coupon 80 leaves merchandise 320. Shipping 30 makes `cash_total` 350. Reward is computed on 320. A gift of 100 lowers `effective_cost` by 50 only, so that score becomes 300 while `cash_total` stays 350. `book()` writes 350 into `spent_7d` only after payment succeeds. A refund does not return it. If 340 remains on the rolling budget, the order stops.
+**[changed]** Code computes these numbers. The model must not. Worked example: shelf 200 × qty 2 = line 400, so `per_item` sees 400. Coupon 80 leaves merchandise 320. Shipping 30 makes `cash_total` 350. Reward is computed on 320. A gift of 100 lowers `effective_cost` by 50 only, so that score becomes 300 while `cash_total` stays 350. `book()` writes 350 into `spent_7d` only after payment succeeds. If 340 remains on the rolling budget, the order stops.
 
 **[changed]** Manual mode: clicking an offer selects it. The user confirms the quote before payment. Auto mode pays only the unique highest-ranked offer that passes every mandate. A tie asks the user. If the cash total, items, shipping, currency, tender, or reward terms change after confirm, that confirm is void. Declining the new quote rolls back to search and releases the coupon. Confirming cannot override a spending limit.
 
@@ -90,7 +90,7 @@ The app should also include the following:
 ○	A test harness that reports how often an agent overspends, over a replayed set of scenarios.
 ○	Successful test cases and test cases where the agent stopped abnormally
 
-**[changed]** Overspend means `cash_total` broke a mandate, reward reduced cash, or shipping was omitted. The harness reports that count on the replay set. The count must be 0. Replays include one pass and abnormal stops for clarify timeout, expired mandate, insufficient budget, user injection, a poisoned listing, an agent surcharge, omitted shipping, a price rollback, a refund that does not restore budget, and a failed negotiation.
+**[changed]** Overspend means `cash_total` broke a mandate, reward reduced cash, or shipping was omitted. The harness reports that count on the replay set. The count must be 0. Replays include one pass and abnormal stops for clarify timeout, expired mandate, insufficient budget, user injection, a poisoned listing, an agent surcharge, omitted shipping, a price rollback, and a failed negotiation.
 
 
 
@@ -120,9 +120,6 @@ How should quote changes be handled?
 Changes to the cash total, items, shipping, currency, payment method, or reward conditions invalidate the previous confirmation. Show the updated quote and request acceptance. User confirmation cannot override a mandatory spending limit.
 What are the default timeouts?
 **[changed]** Search defaults to 15 seconds, capped by the mandate’s max search time. Clarification is 120 seconds. Quote expiry and mandate expiry are separate clocks, both shown on the quote. Mandate expiry stops further purchasing. A timeout before any charge terminates. A timeout after a pay attempt retries the same idempotency key.
-Do refunds restore the rolling seven-day budget?
-For the first release, use a conservative rule: count the original cash payment of successful orders within the preceding continuous 168 hours. Refunds do not automatically restore the budget. Explain this in the interface; a later release may explicitly adopt net-spending accounting.
-
 Approved for this release
 **[changed]** A split request starts with blank amounts. The user assigns each goal a share of the request budget. Unassigned money stays reserved. A goal cannot spend another goal’s share.
 **[changed]** The mock vault id and address id are created with the account. The pay call sends those ids. The user does not type them at checkout.

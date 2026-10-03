@@ -4,7 +4,7 @@ import { initializeSchema, createUser } from "@/lib/db";
 import { saveMandate, createRequest, searchRequest, actOnAttempt } from "@/lib/shop-service";
 import { defaultMandate } from "@/lib/mandate";
 import { parseIntent } from "@/lib/intent";
-import { spent7d } from "@/lib/ledger";
+import { latestReceipt, spent7d, traceForReceipt } from "@/lib/ledger";
 
 const databases: DatabaseSync[] = [];
 async function setup() {
@@ -22,6 +22,11 @@ test("server owns mandate, quote and payment refs; other users cannot access req
   await expect(actOnAttempt(999, a.id, { type: "confirm", version: a.quoteVersion }, 1000, db)).rejects.toThrow();
   expect((await actOnAttempt(user.id, a.id, { type: "confirm", version: a.quoteVersion }, 1000, db)).status).toBe("paid");
   expect((await actOnAttempt(user.id, a.id, { type: "confirm", version: a.quoteVersion }, 1000, db)).status).toBe("paid");
+  const latest = latestReceipt(user.id, db)!;
+  const trace = traceForReceipt(user.id, latest.trace_id, db);
+  expect(trace?.id).toBe(a.trace.id);
+  expect(trace?.rows.some(row => row.from === "payer" && row.to === "shopper")).toBe(true);
+  expect(traceForReceipt(999, latest.trace_id, db)).toBeNull();
   expect(spent7d(user.id, 1000, db)).toBe(a.quote!.cashTotal);
 });
 test("mandate changes or revocation cancel outstanding coupons", async () => {

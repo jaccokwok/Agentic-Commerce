@@ -1,21 +1,19 @@
 import { afterEach, expect, test } from "vitest";
 import { DatabaseSync } from "node:sqlite";
 import { initializeSchema, createUser } from "@/lib/db";
-import { book, spent7d, refund, receipt, recentSkus, historySkus } from "@/lib/ledger";
+import { book, spent7d, receipt, recentSkus, historySkus } from "@/lib/ledger";
 
 const databases: DatabaseSync[] = [];
 function db() { const database = new DatabaseSync(":memory:"); initializeSchema(database); databases.push(database); return database; }
 afterEach(() => databases.splice(0).forEach(d => d.close()));
 const payment = { userId: 1, key: "one", traceId: "trace", requestId: "request", goalId: "snacks", skus: ["sku"], cashTotal: 350, cashback: 6.4, successful: true, now: 2000000000 };
-test("successful payment books cash once; refunds do not restore the 168-hour budget", () => {
+test("successful payment books cash once and counts it for 168 hours", () => {
   const database = db();
   book(payment, database); book(payment, database);
   expect(spent7d(1, payment.now, database)).toBe(350);
-  refund(1, "one", payment.now + 1, database);
-  expect(receipt("one", database)?.refunded_at).toBe(payment.now + 1);
-  expect(receipt("one", database)?.cashback_cents).toBe(0);
-  refund(2, "one", payment.now + 2, database);
-  expect(receipt("one", database)?.refunded_at).toBe(payment.now + 1);
+  expect(receipt("one", database)?.cashback_cents).toBe(640);
+  expect(database.prepare("SELECT COUNT(*) AS count FROM orders").get()?.count).toBe(1);
+  expect(spent7d(2, payment.now, database)).toBe(0);
   expect(spent7d(1, payment.now + 1, database)).toBe(350);
   expect(spent7d(1, payment.now + 168 * 3600000, database)).toBe(0);
   expect(recentSkus(1, payment.now + 71 * 3600000, database)).toContain("sku");

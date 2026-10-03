@@ -60,7 +60,7 @@ export function initializeSchema(database: DatabaseSync) {
       key TEXT PRIMARY KEY, user_id INTEGER NOT NULL, trace_id TEXT NOT NULL,
       request_id TEXT NOT NULL, goal_id TEXT NOT NULL, skus TEXT NOT NULL,
       cash_cents INTEGER NOT NULL, cashback_cents INTEGER NOT NULL,
-      paid_at INTEGER NOT NULL, refunded_at INTEGER
+      paid_at INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS orders_user_time ON orders(user_id, paid_at);
     CREATE TABLE IF NOT EXISTS shopping_requests (id TEXT PRIMARY KEY, user_id INTEGER NOT NULL, payload TEXT NOT NULL);

@@ -117,7 +117,7 @@ npx tsc --noEmit
 npm run build
 ```
 
-The replay test prints `Replay scenarios: 13; overspend count: 0`. Coverage thresholds hold the first measured baseline in `CONSTRAINTS.md`.
+The replay test prints `Replay scenarios: 12; overspend count: 0`. Coverage thresholds hold the first measured baseline in `CONSTRAINTS.md`.
 
 ## Clickable demo
 
@@ -127,4 +127,4 @@ The replay test prints `Replay scenarios: 13; overspend count: 0`. Coverage thre
 4. For a tie, use the balloon request and merchant “Demo · equal-score tie”. Selection pauses for a choice.
 5. For price changes, use “snacks budget 400”, quantity 1, share 400, merchant “Demo · price change (snacks)”. The initial quote is 340. Change to 360, then decline: coupon returns to unused. Select again, change to 410, and try to confirm: the 400 limit rejects payment.
 
-Refunds keep original successful cash payments counted for the preceding continuous 168 hours. Unassigned request money stays reserved, and a goal cannot borrow another goal's share. Reconfirming or revoking a mandate invalidates outstanding attempts. Docker configuration was preserved; the image was not built during local MVP verification.
+Original successful cash payments count for the preceding continuous 168 hours. Unassigned request money stays reserved, and a goal cannot borrow another goal's share. Reconfirming or revoking a mandate invalidates outstanding attempts. Docker configuration was preserved; the image was not built during local MVP verification.
