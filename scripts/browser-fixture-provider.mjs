@@ -8,7 +8,7 @@ createServer(async (req, res) => {
   for await (const chunk of req) raw += chunk;
   try {
     const body = JSON.parse(raw);
-    const { input, previous } = JSON.parse(body.messages.at(-1).content);
+    const { input, previous } = JSON.parse(body.messages.findLast(message => message.role === "user").content);
     const text = input.toLowerCase();
     const intent = { kind: "products", goals: [], guests: null, budget: null, question: null };
     if (/party|派对/.test(text) || previous?.kind === "party") {

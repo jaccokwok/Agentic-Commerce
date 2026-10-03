@@ -43,4 +43,19 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .flow-dialog { margin: auto; width: min(36rem, calc(100% - 2rem)); max-height: calc(100dvh - 2rem); overflow: auto; padding: 1.5rem; border-radius: .75rem; border: 1px solid var(--border); color: var(--foreground); background: var(--surface); }
 .flow-dialog::backdrop { background: rgb(0 0 0 / .45); }
 summary { cursor: pointer; }
+.scout-shell { height: 100dvh; }
+.scout-chat { display: flex; flex-direction: column; width: 100%; max-width: 64rem; height: 100%; min-height: 0; padding: 0; overflow: hidden; }
+.scout-chat-header { display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .75rem; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); }
+.scout-chat-header h1 { font-size: 1.25rem; font-weight: 600; }
+.scout-chat-history { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; }
+.scout-message { width: fit-content; max-width: 85%; padding: .875rem 1rem; border-radius: .75rem; font-size: .9375rem; line-height: 1.6; overflow-wrap: anywhere; white-space: pre-wrap; flex-shrink: 0; }
+.scout-message-scout { align-self: flex-start; background: var(--background); }
+.scout-message-user { align-self: flex-end; background: var(--accent); }
+.scout-speaker { font-size: .75rem; font-weight: 600; color: var(--muted); margin-bottom: .25rem; }
+.scout-composer { flex-shrink: 0; border-top: 1px solid var(--border); padding: 1rem 1.25rem; }
+.scout-composer textarea { min-height: 3.5rem; height: 3.5rem; max-height: 6rem; margin: 0; resize: none; }
+.scout-composer-footer { display: flex; justify-content: space-between; align-items: center; gap: .5rem; margin-top: .75rem; }
+.scout-suggestions { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: .75rem; }
+.flow-dialog .shop-panel { border: 0; padding: 1rem 0 0; }
 @media (max-width: 640px) { .shop-fields { grid-template-columns: minmax(0, 1fr); } .shop-panel { padding: 1rem; } }
+@media (max-width: 640px) { .scout-chat { padding: 0; } .scout-chat-header, .scout-chat-history, .scout-composer { padding: .75rem; } .scout-message { max-width: 95%; } .scout-suggestions { flex-wrap: nowrap; overflow-x: auto; } .scout-suggestions button { flex-shrink: 0; max-width: 16rem; } .scout-composer-footer .shop-muted { max-width: 70%; } .flow-dialog .shop-panel { padding: .75rem 0 0; } }
