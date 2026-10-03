@@ -10,10 +10,10 @@ export type RankedOffer = { offer: Offer; money: ReturnType<typeof priceLine>; s
 export function resolveWeights(text: string, explicit?: Weights) {
   const inferred = /cheapest|lowest\s*cash|最便宜|最低现金/i.test(text) ? { relevance: 0.2, cash: 0.6, rating: 0.1, purchases: 0.05, history: 0.05 } : DEFAULT_WEIGHTS;
   const weights = explicit ?? inferred;
-  const invalid = Object.values(weights).some(n => !Number.isFinite(n) || n < 0) || Math.abs(Object.values(weights).reduce((a, b) => a + b, 0) - 1) > 0.000001;
+  const invalid = Object.values(weights).some((n) => !Number.isFinite(n) || n < 0);
   const conflict = explicit && inferred !== DEFAULT_WEIGHTS && Object.keys(inferred).some(k => explicit[k as keyof Weights] !== inferred[k as keyof Weights]);
   return { status: invalid ? "terminate" as const : conflict ? "clarify" as const : "ready" as const, weights,
-    reason: invalid ? "Weights must be non-negative and sum to 1" : conflict ? "Explicit weights take precedence; confirm conflicting preference before continuing" : "Ranking weights resolved" };
+    reason: invalid ? "Weights must be finite and at least 0" : conflict ? "Explicit weights take precedence; confirm conflicting preference before continuing" : "Ranking weights resolved" };
 }
 export function offerMoney(offer: Offer, qty: number, includeRewards: boolean) {
   return priceLine({ shelf: toHKD(offer.shelf, offer.currency).amount, qty,

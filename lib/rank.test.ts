@@ -27,6 +27,11 @@ test("explicit weights override inferred values but contradictions require clari
   expect(resolveWeights("cheapest", explicit)).toMatchObject({ status: "clarify", weights: explicit });
   expect(resolveWeights("", explicit).status).toBe("ready");
 });
+test("one cash override does not have to sum to 1", () => {
+  const explicit = { ...DEFAULT_WEIGHTS, cash: 0.5 };
+  expect(resolveWeights("red balloons", explicit)).toMatchObject({ status: "ready", weights: explicit });
+  expect(resolveWeights("cheapest balloons", explicit)).toMatchObject({ status: "clarify", weights: explicit });
+});
 test("equal best scores across merchants also pause automatic selection", () => {
   const offer = loadCatalog().offers[0];
   expect(rankOffers([offer, { ...offer, merchant_id: "another", sku_id: "another-sku" }], goal, defaultMandate(), []).status).toBe("clarify");

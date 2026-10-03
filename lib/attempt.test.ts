@@ -24,7 +24,8 @@ test("one trace covers every step; selecting never pays and manual confirm books
   advanceAttempt(attempt, { type: "confirm", version: attempt.quoteVersion }, ctx);
   expect(attempt.status).toBe("paid");
   expect(attempt.trace.rows.map(r => r.step)).toEqual(expect.arrayContaining(["parse", "mandate", "search", "rank", "negotiate", "quote", "pay"]));
-  expect(attempt.trace.rows.every(r => r.ruleId && r.numbers)).toBe(true);
+  expect(new Set(attempt.trace.rows.map(r => r.role))).toEqual(new Set(["shopper", "mandate", "merchant", "auditor", "payer"]));
+  expect(attempt.trace.rows.every(r => r.ruleId && r.numbers && r.role)).toBe(true);
 });
 test("tie and repeated SKU require clarification, expiry and rollback release coupons", () => {
   const { ctx, input } = setup();
