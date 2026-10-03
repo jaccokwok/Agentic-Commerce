@@ -413,7 +413,7 @@ The parser may later be a hosted model that returns the same JSON. The harness s
 - A party-items confirm trace contains all five role names.
 - Each of the 13 replays ends at the status in `fixtures/replays.json`.
 - The harness prints `Replay scenarios: 13; overspend count: 0`.
-- A counter, a second tender, a credential, and dual-accept auto pay are absent from the demo until their slice’s tests exist.
+- The counter, the wallet tender, the two signed slips, and auto pay after both checks are in the working tree. Their tests are the proof. A live card charge, a live DID registry, and a hosted model are not.
 - `CONSTRAINTS.md` coverage floor is unchanged.
 
 ## Open questions

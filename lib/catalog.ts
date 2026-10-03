@@ -8,6 +8,7 @@ export type Offer = {
   human_price: number; agent_price: number; coupon: number;
   reward: { gift: number; rate: number; terms: string };
   description: string; review: string; brand: string; appearance: string; stock: boolean;
+  counter?: { shipping?: number; coupon?: number; reason: string };
 };
 export const rawOffers: Offer[] = fixtures.offers;
 

@@ -12,5 +12,7 @@ test("each step belongs to one role, and a bad listing stays with the auditor", 
   expect(roleFor("search", "agent_surcharge")).toBe("auditor");
   expect(roleFor("search", "shipping_missing")).toBe("auditor");
   expect(roleFor("search", "invalid_offer")).toBe("auditor");
+  expect(roleFor("audit", "credentials_ok")).toBe("auditor");
+  expect(roleFor("audit", "credentials_bad")).toBe("auditor");
   expect(roleFor("pay", "mock_refs_idempotency")).toBe("payer");
 });

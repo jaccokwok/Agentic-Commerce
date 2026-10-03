@@ -10,3 +10,17 @@ test("one catalogue accept reserves coupon; each rejection releases it", () => {
   }
   expect(releaseCoupon()).toBe("unused");
 });
+test("one counter may change shipping or the coupon and never the shelf", () => {
+  const offer = rawOffers[0];
+  const raised = negotiate(offer, { ...offer, counter: { shipping: (offer.shipping ?? 0) + 10, reason: "Shipping quote revised" } });
+  expect(raised.status).toBe("counter");
+  if (raised.status === "counter") {
+    expect(raised.coupon).toBe("unused");
+    expect(raised.offer.shipping).toBe((offer.shipping ?? 0) + 10);
+    expect(raised.offer.shelf).toBe(offer.shelf);
+    expect(raised.offer.counter).toBeUndefined();
+  }
+  expect(negotiate(offer, { ...offer, counter: { coupon: 5, reason: "Coupon revised" } })).toMatchObject({ status: "counter", coupon: "unused" });
+  expect(negotiate(offer, { ...offer, counter: { reason: "No new term" } })).toMatchObject({ status: "rejected", coupon: "unused" });
+  expect(negotiate(offer, { ...offer, shipping: undefined, counter: { coupon: 1, reason: "Drop shipping" } })).toMatchObject({ status: "rejected", coupon: "unused" });
+});

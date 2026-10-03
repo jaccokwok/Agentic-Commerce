@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { logoutAction } from "@/app/actions/auth";
+import { refundAction } from "@/app/actions/shop";
 import GlowBackdrop from "@/components/glow-backdrop";
 import SiteHeader from "@/components/site-header";
 import { getSessionUser } from "@/lib/auth";
 import { getUserById } from "@/lib/db";
-import { currentSpend } from "@/lib/ledger";
+import { currentSpend, latestReceipt } from "@/lib/ledger";
 
 export const metadata: Metadata = {
   title: "Your account — Scout",
@@ -28,6 +29,7 @@ export default async function AccountPage() {
 
   const record = await getUserById(user.id);
   const spent = await currentSpend(user.id);
+  const latest = latestReceipt(user.id);
   const memberSince = record?.created_at
     ? new Date(record.created_at.replace(" ", "T") + "Z").toLocaleDateString(
         "en-US",
@@ -59,9 +61,20 @@ export default async function AccountPage() {
             <h2 className="font-semibold">Mock payment references</h2>
             <dl className="mt-3 space-y-3 text-sm">
               <div><dt>Vault ID</dt><dd className="break-all font-mono text-xs">{record?.vault_id}</dd></div>
+              <div><dt>DID</dt><dd className="break-all font-mono text-xs">{record?.did}</dd></div>
               <div><dt>Address ID</dt><dd className="break-all font-mono text-xs">{record?.address_id}</dd></div>
               <div><dt>Spent in the preceding 168 hours</dt><dd className="font-semibold">HKD {spent.toFixed(2)}</dd></div>
+              {latest && <>
+                <div><dt>Latest cash booked</dt><dd className="font-semibold">HKD {(latest.cash_cents / 100).toFixed(2)}</dd></div>
+                <div><dt>Cashback on that receipt</dt><dd className="font-semibold">HKD {(latest.cashback_cents / 100).toFixed(2)}</dd></div>
+              </>}
             </dl>
+            {latest && !latest.refunded_at && <form action={refundAction} className="mt-4">
+              <input type="hidden" name="key" value={latest.key} />
+              <button type="submit" className="rounded-full bg-neutral-900 px-4 py-2 text-sm font-semibold text-white">Refund this receipt</button>
+            </form>}
+            {latest?.refunded_at != null && <p className="mt-4 text-sm font-medium text-neutral-900">This receipt is refunded. The 168-hour figure did not change.</p>}
+            {!latest && <p className="mt-4 text-sm text-neutral-600">No mock receipt yet.</p>}
             <p className="mt-4 text-sm leading-relaxed text-neutral-600">A refund does not restore the rolling seven-day budget. Original cash payments remain counted for the preceding continuous 168 hours. These references are created with your account; checkout never asks for a card number.</p>
             <Link
               href="/"

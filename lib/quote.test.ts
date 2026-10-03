@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { createQuote, checkQuote, quoteChanged, searchDeadline, clarifyDeadline } from "@/lib/quote";
+import { createQuote, checkQuote, quoteChanged, searchDeadline, clarifyDeadline, allowedTenders } from "@/lib/quote";
 import { defaultMandate } from "@/lib/mandate";
 import { rawOffers } from "@/lib/catalog";
 
@@ -27,4 +27,9 @@ test("cash cannot exceed order, share or remaining budget; per-item checks pre-c
     expect(checkQuote(quote, limits.m, limits.share, limits.remaining, 1000).status).toBe("terminate");
   }
   expect(checkQuote(quote, m, 500, 500, quote.expiresAt).status).toBe("terminate");
+  const wallet = createQuote(offer, 2, { ...m, tenders: ["wallet"] }, 1000);
+  expect(wallet.tender).toBe("wallet");
+  expect(checkQuote(wallet, { ...m, tenders: ["wallet"] }, 500, 500, 1000).status).toBe("ready");
+  expect(allowedTenders({ ...m, tenders: [] })).toEqual(["card"]);
+  expect(allowedTenders({ ...m, tenders: ["points"] })).toEqual([]);
 });

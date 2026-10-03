@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from "vitest";
 import { DatabaseSync } from "node:sqlite";
 import { initializeSchema, createUser } from "@/lib/db";
-import { book, spent7d, refund, recentSkus, historySkus } from "@/lib/ledger";
+import { book, spent7d, refund, receipt, recentSkus, historySkus } from "@/lib/ledger";
 
 const databases: DatabaseSync[] = [];
 function db() { const database = new DatabaseSync(":memory:"); initializeSchema(database); databases.push(database); return database; }
@@ -12,6 +12,10 @@ test("successful payment books cash once; refunds do not restore the 168-hour bu
   book(payment, database); book(payment, database);
   expect(spent7d(1, payment.now, database)).toBe(350);
   refund(1, "one", payment.now + 1, database);
+  expect(receipt("one", database)?.refunded_at).toBe(payment.now + 1);
+  expect(receipt("one", database)?.cashback_cents).toBe(0);
+  refund(2, "one", payment.now + 2, database);
+  expect(receipt("one", database)?.refunded_at).toBe(payment.now + 1);
   expect(spent7d(1, payment.now + 1, database)).toBe(350);
   expect(spent7d(1, payment.now + 168 * 3600000, database)).toBe(0);
   expect(recentSkus(1, payment.now + 71 * 3600000, database)).toContain("sku");
@@ -30,4 +34,5 @@ test("registration creates both refs and preserves existing user schema", async 
   const user = await createUser("test@example.com", "Test", "test-hash", database);
   expect(user.vault_id).toMatch(/^vault_/);
   expect(user.address_id).toMatch(/^address_/);
+  expect(user.did).toBe(`did:mock:${user.id}`);
 });

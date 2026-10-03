@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
-import { loadCatalog, CATEGORY_IDS, type Offer } from "@/lib/catalog";
+import { loadCatalog, hasInjection, CATEGORY_IDS, type Offer } from "@/lib/catalog";
 import { parseIntent, type Goal } from "@/lib/intent";
 import { checkMandate, type Mandate } from "@/lib/mandate";
 import { checkAllocations } from "@/lib/allocation";
@@ -10,6 +10,7 @@ import { negotiate, releaseCoupon, type CouponState } from "@/lib/negotiate";
 import { historySkus, recentSkus, spent7d, spentShare, spentRequest, receipt } from "@/lib/ledger";
 import { mockPay, type PayContext } from "@/lib/pay";
 import { newTrace, log, type Trace } from "@/lib/trace";
+import { issueIntent, issuePayment, verifyPair } from "@/lib/credential";
 
 export type AttemptInput = { userId: number; requestId: string; text: string; goals: Goal[]; goalId: string;
   shares: Record<string, number | null>; budget: number; partialAccepted: boolean; mandate: Mandate;
@@ -19,7 +20,7 @@ export type Attempt = { id: string; input: AttemptInput; trace: Trace; status: "
   reason: string; offers: RankedOffer[]; selected: Offer | null; quote: Quote | null;
   quoteVersion: number; coupon: CouponState; clarifyExpiresAt: number | null; idempotencyKey: string; repeatedAccepted: boolean };
 export type AttemptContext = { database: DatabaseSync; now: () => number; vaultId: string; addressId: string;
-  catalog?: Offer[]; lookup?: (sku: string) => Offer | undefined; paySimulation?: PayContext["simulation"]; authorize?: () => void };
+  catalog?: Offer[]; lookup?: (sku: string) => Offer | undefined; paySimulation?: PayContext["simulation"]; authorize?: () => void; flipCredential?: boolean };
 export type AttemptEvent = { type: "select"; skuId: string } | { type: "confirm"; version: number } |
   { type: "price_change"; cashTotal: number } | { type: "accept_repeat" } | { type: "retry" } | { type: "decline" } | { type: "cancel" } | { type: "tick" };
 
@@ -37,20 +38,38 @@ function remaining(a: Attempt, ctx: AttemptContext) {
   return { rolling: a.input.mandate.rolling7d - spent7d(a.input.userId, ctx.now(), ctx.database),
     share: (a.input.shares[a.input.goalId] ?? 0) - spentShare(a.input.userId, a.input.requestId, a.input.goalId, ctx.database) };
 }
+function skip(a: Attempt, reason: string) {
+  a.coupon = releaseCoupon(); a.status = "offers"; a.quote = null; a.reason = reason;
+  return a;
+}
 function prepare(a: Attempt, offer: Offer, ctx: AttemptContext) {
   const now = ctx.now();
   a.coupon = releaseCoupon(); a.selected = offer; a.quote = null;
   const current = ctx.lookup?.(offer.sku_id) ?? (ctx.catalog ? ctx.catalog.find(o => o.sku_id === offer.sku_id) : offer);
-  const result = negotiate(offer, current);
-  a.coupon = result.coupon;
-  log(a.trace, "negotiate", result.status, result.reason, { coupon: a.coupon, shelf: offer.shelf, shipping: offer.shipping ?? null }, now);
-  if (result.status === "rejected") { a.status = "offers"; a.reason = result.reason; return a; }
-  a.quote = createQuote(offer, a.input.goals.find(g => g.id === a.input.goalId)!.qty!, a.input.mandate, now);
+  const audited = loadCatalog(current ? [current] : []);
+  if (!audited.offers.length) {
+    const drop = audited.dropped[0];
+    if (drop) log(a.trace, "search", drop.rule, drop.reason, { sku: drop.sku_id }, now);
+    return skip(a, drop?.reason ?? "Current catalogue offer rejected");
+  }
+  const result = negotiate(offer, audited.offers[0]);
+  log(a.trace, "negotiate", result.status, result.reason, { coupon: result.coupon, shelf: offer.shelf, shipping: offer.shipping ?? null }, now);
+  if (result.status === "rejected") return skip(a, result.reason);
+  let priced = offer;
+  if (result.status === "counter") {
+    if (hasInjection(result.reason)) {
+      log(a.trace, "search", "listing_injection", "Auditor vetoed a counter that carries an instruction", { sku: offer.sku_id }, now);
+      return skip(a, "Auditor vetoed the counter");
+    }
+    priced = result.offer;
+  }
+  a.quote = createQuote(priced, a.input.goals.find(g => g.id === a.input.goalId)!.qty!, a.input.mandate, now);
   a.quoteVersion += 1;
   const budget = remaining(a, ctx);
   const gate = checkQuote(a.quote, a.input.mandate, budget.share, budget.rolling, now);
   log(a.trace, "quote", "cash_gate", gate.reason, { cash: a.quote.cashTotal, line: a.quote.items[0].lineTotal, shipping: a.quote.shipping, effective: a.quote.effectiveCost, share: budget.share, rolling: budget.rolling }, now);
-  if (gate.status !== "ready") return stop(a, gate.reason, now);
+  if (gate.status !== "ready") return result.status === "counter" ? skip(a, gate.reason) : stop(a, gate.reason, now);
+  a.selected = priced; a.coupon = "reserved";
   if (!a.repeatedAccepted && recentSkus(a.input.userId, now, ctx.database).includes(offer.sku_id)) return clarify(a, "repeat", "Same SKU purchased within 72 hours. Confirm this is intentional.", now);
   a.status = "quote"; a.issue = null; a.clarifyExpiresAt = null; a.reason = "Review the final quote before mock payment";
   return a;
@@ -108,6 +127,17 @@ export function runAttempt(input: AttemptInput, ctx: AttemptContext): Attempt {
 
 function pay(a: Attempt, ctx: AttemptContext) {
   const q = a.quote!;
+  const did = `did:mock:${a.input.userId}`;
+  const intent = issueIntent(did, a.input.mandate);
+  let payment = issuePayment(intent, q);
+  if (ctx.flipCredential) {
+    const chars = payment.signature.split("");
+    chars[0] = chars[0] === "0" ? "1" : "0";
+    payment = { ...payment, signature: chars.join("") };
+  }
+  const verdict = verifyPair(intent, payment, did, a.input.mandate, q);
+  log(a.trace, "audit", verdict.ok ? "credentials_ok" : "credentials_bad", verdict.reason, { cash: q.cashTotal, merchant: q.merchantId }, ctx.now());
+  if (!verdict.ok) return stop(a, verdict.reason, ctx.now());
   const input = { vaultId: ctx.vaultId, addressId: ctx.addressId, amount: q.cashTotal, currency: q.currency,
     tender: q.tender, expiresAt: q.expiresAt, idempotencyKey: a.idempotencyKey };
   const context: PayContext = { userId: a.input.userId, requestId: a.input.requestId, goalId: a.input.goalId, traceId: a.trace.id,

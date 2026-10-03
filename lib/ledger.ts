@@ -47,6 +47,9 @@ export function book(input: { userId: number; key: string; traceId: string; requ
     throw error;
   }
 }
+export function latestReceipt(userId: number, database = getDb()): Receipt | null {
+  return database.prepare("SELECT * FROM orders WHERE user_id = ? ORDER BY paid_at DESC LIMIT 1").get(userId) as Receipt | undefined ?? null;
+}
 export function refund(userId: number, key: string, now: number, database = getDb()) {
-  database.prepare("UPDATE orders SET refunded_at = ? WHERE key = ? AND user_id = ?").run(now, key, userId);
+  database.prepare("UPDATE orders SET refunded_at = ?, cashback_cents = 0 WHERE key = ? AND user_id = ? AND refunded_at IS NULL").run(now, key, userId);
 }

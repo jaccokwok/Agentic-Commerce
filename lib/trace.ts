@@ -4,7 +4,7 @@ export type Role = "shopper" | "mandate" | "merchant" | "auditor" | "payer";
 export type TraceRow = { role: Role; step: string; ruleId: string; reason: string; numbers: Record<string, number | string | boolean | null>; at: number };
 export type Trace = { id: string; rows: TraceRow[] };
 
-const AUDITOR_RULES = new Set(["listing_injection", "agent_surcharge", "shipping_missing", "invalid_offer"]);
+const AUDITOR_RULES = new Set(["listing_injection", "agent_surcharge", "shipping_missing", "invalid_offer", "credentials_ok", "credentials_bad"]);
 
 export function roleFor(step: string, ruleId: string): Role {
   if (AUDITOR_RULES.has(ruleId)) return "auditor";

@@ -1,6 +1,6 @@
 # Multi-agent commerce, added in slices
 
-Last reviewed: 2026-10-03. Branch: `gpt6.1-ivy`. Product rules in `prompt.md` stay in force. This file is the build order. The behavior contract for every role and every case is `tasks/agent-roles.md`. Neither file replaces `prompt.md` or `tasks/todo.md`.
+Last reviewed: 2026-10-03. Branch: `gpt6.1-ivy`. Product rules in `prompt.md` stay in force. This file is the build order. The behavior contract for every role and every case is `tasks/agent-roles.md`. The step-by-step build, with the exact files and the test that proves each step, is `tasks/build-steps.md`. Neither file replaces `prompt.md` or `tasks/todo.md`.
 
 ## What the current system is
 
@@ -65,7 +65,7 @@ Each slice keeps `npm test` green and the harness overspend count at 0. Stop aft
 
 ## Slice 1 — Name the roles
 
-Status: in the working tree, not committed. Every new trace row has a `role`. The decision log shows it. Counter-offers, a second tender, DID, and dual-accept auto pay are still the later slices.
+Status: in the working tree, not committed. Every new trace row has a `role`. The decision log shows it.
 
 The shopper, mandate, merchant, auditor, and payer are the functions that already run. Each trace row gains a `role` field. The page shows that role next to the reason.
 
@@ -76,6 +76,8 @@ Done when a party-items search trace contains all five role names, a poisoned fi
 Files: `lib/trace.ts`, `lib/attempt.ts`, `components/trace-log.tsx`, the attempt tests.
 
 ## Slice 2 — One negotiation round
+
+Status: in the working tree, not committed. A row may carry one counter that changes shipping or the coupon. The shopper keeps it only when the new cash passes the mandate. An instruction in the counter is an auditor veto. Cash 410 against per-order 400 is refused and nothing is booked. The shared 24-row catalogue is unchanged, so the click-through demo does not show a counter yet.
 
 A merchant role is three adapters, one per `platform_id`: `taobao`, `hktvmall`, `pinduoduo`. Each adapter may accept the row, reject it (`out_of_stock`, `coupon_gone`, `price_mismatch`), or return one counter. A counter may change shipping or coupon. It may not change the shelf above `human_price`, omit shipping, or put instructions in the reason text.
 
@@ -88,6 +90,8 @@ Done when a fixture counter that stays inside the mandate produces a new quote, 
 Files: `lib/negotiate.ts`, `fixtures/catalog.json`, `lib/attempt.ts`, negotiate and attempt tests.
 
 ## Slice 3 — Payer, routing, checkout, refund
+
+Status: in the working tree, not committed. A blank tender list charges card. A list with neither card nor wallet stops. If the list is card then wallet, and card is declined before any charge, one row is booked under the key `wallet:` plus the original key. If card already charged, wallet is not started. A timeout before any charge still stops and does not skip to wallet. Refund on the account page sets `refunded_at`, sets cashback to 0, and leaves the 168-hour total unchanged. Another user’s key is ignored.
 
 The payer is the only module that calls `book` and `refund`. The shopper sends it the vault id, the address id, the cash total, the currency, the tender, the quote expiry, and the idempotency key. The payer rejects a card number if one is present.
 
@@ -104,6 +108,8 @@ Done when those tests pass, the account page can refund the latest mock receipt,
 Files: `lib/pay.ts`, `lib/ledger.ts`, `app/account/page.tsx`, `app/actions/shop.ts`, pay and ledger tests.
 
 ## Slice 4 — Mock DID and verifiable credentials
+
+Status: in the working tree, not committed. A new account stores `did:mock:` plus the user id, and the account page shows it. Confirming a quote signs an intent slip and a payment slip with a server-side key. The auditor checks both before the payer charges. A flipped signature, a swapped merchant, or a changed cash total books nothing. The trace shows that check before the charge line. No network and no blockchain. Slice 5, the extra auto-mode test, is not started.
 
 Add `did:mock:<user id>` on the user row, next to the vault id. No network, no registry.
 
@@ -122,6 +128,8 @@ Files: `lib/credential.ts`, `lib/db.ts`, `lib/pay.ts`, `lib/attempt.ts`, credent
 
 ## Slice 5 — Auto pay under both checks
 
+Status: in the working tree, not committed. Auto mode does not have a second cashier. A unique winner calls the same confirm. The decision log shows the auditor’s signature check, then the payer’s charge. A tie still asks and books nothing. A tender list of only `points` stops and books nothing. One flipped character in the payment signature stops an automatic charge and books nothing. The 13 replays still print overspend count 0.
+
 Auto mode pays only when all of these are true: one offer is strictly first, no clarify is open, the merchant accepted or the shopper accepted a counter, the auditor verified both credentials, and the payer’s route has an allowed tender. A tie, a price change, a repeat sku, or a failed signature stops for the user. The existing auto path stays the skeleton. This slice adds the auditor’s pass as a required input to that path.
 
 Done when the harness happy path still pays, the tie path still asks, and an auto attempt with a broken payment credential does not book.
@@ -134,6 +142,6 @@ Work continues on `gpt6.1-ivy`. Commit the weight-sum change first. Then one sli
 
 `bono_v1` stays as the other implementation. Do not merge it. Its useful difference, a weight that need not sum to 1, is the uncommitted edit already on this branch.
 
-## Demo line once Slice 4 is in
+## Demo line
 
-Sign in. Confirm a mandate. The trace shows an intent credential issued to `did:mock:…`. Search party items, set quantities and shares, and accept that one goal may finish without the other. Three offers come from one merchant. A merchant counter changes shipping, the auditor lets it through, and the cash total updates. Confirming issues the payment credential. The payer charges `card` through the vault id. The account page shows the booked cash, the cashback, and a refund that does not give the 168-hour budget back. A second run with a broken signature stops before any charge. The harness still prints an overspend count of 0.
+Sign in. Confirm a mandate. The account page shows `did:mock:` plus the user id. Search party items, set quantities and shares, and accept that one goal may finish without the other. Three offers come from one merchant. The counter is in the tests, not on this click-through sku. Confirming signs the payment slip, the auditor line appears, then the payer charges `card` through the vault id. The account page shows the booked cash, the cashback, and a refund that does not give the 168-hour budget back. A second run with a broken signature stops before any charge. Auto mode, also in the tests, books a unique winner the same way, asks on a tie, and books nothing when the signature is flipped. The harness still prints an overspend count of 0.
