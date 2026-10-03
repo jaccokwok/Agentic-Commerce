@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { logoutAction } from "@/app/actions/auth";
 import GlowBackdrop from "@/components/glow-backdrop";
-import { ScoutMark } from "@/components/icons";
 import SiteHeader from "@/components/site-header";
 import { getSessionUser } from "@/lib/auth";
 import { getUserById } from "@/lib/db";
+import { spentSince } from "@/lib/ledger";
 
 export const metadata: Metadata = {
   title: "Your account — Scout",
@@ -27,6 +26,7 @@ export default async function AccountPage() {
   if (!user) redirect("/login?next=/account");
 
   const record = await getUserById(user.id);
+  const spent = spentSince(user.id, new Date());
   const memberSince = record?.created_at
     ? new Date(record.created_at.replace(" ", "T") + "Z").toLocaleDateString(
         "en-US",
@@ -54,24 +54,34 @@ export default async function AccountPage() {
             </p>
           )}
 
-          <div className="mt-7 rounded-2xl border border-dashed border-neutral-200 bg-neutral-50/60 p-6 text-center">
-            <span className="mx-auto flex h-9 w-9 items-center justify-center rounded-[10px] bg-white shadow-sm ring-1 ring-neutral-900/5">
-              <ScoutMark className="h-5 w-5 text-[#a4cd39]" />
-            </span>
-            <p className="mt-3 text-sm font-medium text-neutral-800">
-              No saved searches yet
+          <dl className="mt-7 space-y-3 rounded-2xl border border-neutral-200 bg-neutral-50/60 p-5 text-sm">
+            <div>
+              <dt className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-400">
+                Vault reference
+              </dt>
+              <dd className="mt-1 break-all font-medium text-neutral-900">
+                {record?.vault_ref}
+              </dd>
+            </div>
+            <div>
+              <dt className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-400">
+                Address reference
+              </dt>
+              <dd className="mt-1 break-all font-medium text-neutral-900">
+                {record?.address_ref}
+              </dd>
+            </div>
+            <div>
+              <dt className="font-mono text-[10px] uppercase tracking-[0.2em] text-neutral-400">
+                Spent in 168 hours
+              </dt>
+              <dd className="mt-1 font-medium text-neutral-900">{spent} HKD</dd>
+            </div>
+            <p className="text-sm leading-relaxed text-neutral-500">
+              A refund does not restore spending counted in the preceding 168
+              hours.
             </p>
-            <p className="mt-1 text-sm leading-relaxed text-neutral-500">
-              Describe what you need on the home page and Scout will keep track
-              of it here.
-            </p>
-            <Link
-              href="/"
-              className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#c8f14f] px-4 py-2 text-sm font-semibold text-neutral-900 transition hover:bg-[#bdef38]"
-            >
-              Back to Scout
-            </Link>
-          </div>
+          </dl>
 
           <form action={logoutAction} className="mt-7 border-t border-neutral-100 pt-5">
             <button

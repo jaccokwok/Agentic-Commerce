@@ -123,60 +123,60 @@ Vitest, files named `lib/*.test.ts` next to the module. Each task adds the tests
 
 ### Phase 1: Kernel
 
-- [ ] Task 1: Add Vitest and `npm test`
-- [ ] Task 2: Money formula and HKD rates
-- [ ] Task 3: Catalog fixtures and offer drops
+- [x] Task 1: Add Vitest and `npm test`
+- [x] Task 2: Money formula and HKD rates
+- [x] Task 3: Catalog fixtures and offer drops
 
 ### Checkpoint: Kernel
 
-- [ ] `npm test` passes for money, FX, and catalog
-- [ ] `npm run lint` passes
+- [x] `npm test` passes for money, FX, and catalog
+- [x] `npm run lint` passes
 
 ### Phase 2: Request
 
-- [ ] Task 4: Mandate record, defaults, and conflict routing
-- [ ] Task 5: Intent parser
-- [ ] Task 6: Sub-request budget shares
+- [x] Task 4: Mandate record, defaults, and conflict routing
+- [x] Task 5: Intent parser
+- [x] Task 6: Sub-request budget shares
 
 ### Checkpoint: Request
 
-- [ ] Tests cover party items, blank qty, injection, expired mandate, and allocation
+- [x] Tests cover party items, blank qty, injection, expired mandate, and allocation
 
 ### Phase 3: Choose and pay
 
-- [ ] Task 7: Rank top 3
-- [ ] Task 8: Quote snapshot
-- [ ] Task 9: Ledger, vault id, and address id
-- [ ] Task 10: Catalogue negotiation
-- [ ] Task 11: Mock pay
+- [x] Task 7: Rank top 3
+- [x] Task 8: Quote snapshot
+- [x] Task 9: Ledger, vault id, and address id
+- [x] Task 10: Catalogue negotiation
+- [x] Task 11: Mock pay
 
 ### Checkpoint: Choose and pay
 
-- [ ] Worked example, reject-releases-coupon, and idempotent retry are tested
-- [ ] `npx tsc --noEmit` passes
+- [x] Worked example, reject-releases-coupon, and idempotent retry are tested
+- [x] `npx tsc --noEmit` passes
 
 ### Phase 4: Proof
 
-- [ ] Task 12: Attempt runner and trace
-- [ ] Task 13: Overspend harness
+- [x] Task 12: Attempt runner and trace
+- [x] Task 13: Overspend harness
 
 ### Checkpoint: Proof
 
-- [ ] Harness overspend count is 0
-- [ ] `npm test` passes
+- [x] Harness overspend count is 0
+- [x] `npm test` passes
 
 ### Phase 5: Screens
 
-- [ ] Task 14: Remove false landing claims
-- [ ] Task 15: Mandate form
-- [ ] Task 16: Shopping list
-- [ ] Task 17: Offers and trace
-- [ ] Task 18: Clarify, confirm, price change
-- [ ] Task 19: Account refs and 7-day note
+- [x] Task 14: Remove false landing claims
+- [x] Task 15: Mandate form
+- [x] Task 16: Shopping list
+- [x] Task 17: Offers and trace
+- [x] Task 18: Clarify, confirm, price change
+- [x] Task 19: Account refs and 7-day note
 
 ### Checkpoint: Demo
 
-- [ ] `npm run build` passes
+- [x] `npm run build` passes
 - [ ] The demo script in Success criteria can be clicked through
 - [ ] Human review before any further scope
 

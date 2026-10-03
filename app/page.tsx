@@ -3,11 +3,7 @@ import { CheckCircleIcon } from "@/components/icons";
 import SearchSection from "@/components/search-section";
 import SiteHeader from "@/components/site-header";
 
-const TRUST_ITEMS = [
-  "No sponsored results",
-  "Secure checkout",
-  "Free to search",
-];
+const TRUST_ITEMS = ["Mock catalogue", "You confirm before payment", "Free to search"];
 
 const AVATAR_GRADIENTS = [
   "from-amber-300 to-orange-400",
@@ -57,8 +53,7 @@ export default function Home() {
             ))}
           </span>
           <span>
-            <span className="font-semibold text-neutral-900">12,000+</span>{" "}
-            thoughtful shoppers
+            Search the mock catalogue
           </span>
         </span>
 

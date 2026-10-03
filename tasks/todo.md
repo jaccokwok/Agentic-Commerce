@@ -1,6 +1,8 @@
 # Tasks: Scout buying loop
 
-Source of truth for behavior: `prompt.md`. Order and decisions: `tasks/plan.md`. Do these in order. A task is done when its acceptance checks and its verify command pass.
+Tasks 1–19 are implemented. `npm test` covers the shop checks (65 tests). `npm run build` passes. A person still needs to click the demo script in `tasks/plan.md`.
+
+Source of truth for behavior: `prompt.md`. Order and decisions: `tasks/plan.md`.
 
 ## Task 1: Add Vitest and `npm test`
 

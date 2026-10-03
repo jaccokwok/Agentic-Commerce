@@ -1,0 +1,17 @@
+{
+  "ids": [
+    "pass",
+    "tie",
+    "poisoned_listing",
+    "agent_surcharge",
+    "omitted_shipping",
+    "price_rollback",
+    "clarify_timeout",
+    "expired_mandate",
+    "per_item_despite_coupon",
+    "insufficient_rolling",
+    "refund_does_not_restore",
+    "negotiation_failed",
+    "user_injection"
+  ]
+}
