@@ -2,7 +2,7 @@
 
 Agentic commerce MVP built with **Next.js** (App Router), **Tailwind CSS**, and embedded SQLite, with a Docker deployment configuration.
 
-Scout implements the buying loop in `prompt.md`: confirmed mandate → editable shopping goals and budget shares → one merchant's top three offers → catalogue negotiation → final quote → mock card payment → persistent ledger and decision trace. Catalogues, FX and payments are mock data. No hosted LLM, live scrape, card collection or real Stripe charge is used.
+Scout follows `tasks/demo-spec.md`: first authorization → natural-language request → one final confirmation for a complete cross-merchant basket. Shopper calls a real server-configured AI service; merchant, mandate, auditor and payer use deterministic code. Catalogue and payments are simulated. There is no live scrape, card collection or real charge. The previous single-merchant implementation and its tests remain available as regression coverage.
 
 ## Tech stack
 
@@ -13,6 +13,20 @@ Scout implements the buying loop in `prompt.md`: confirmed mandate → editable 
 | Runtime  | Docker (multi-stage image, standalone output)  |
 
 ## Run locally (Node 22.13+ recommended)
+
+Configure the shopper in an ignored `.env.local` file or the server environment:
+
+```dotenv
+SCOUT_AI_BASE_URL=https://api.openai.com/v1
+SCOUT_AI_MODEL=your-structured-output-model
+SCOUT_AI_API_KEY=your-server-only-key
+```
+
+The base URL is an OpenAI-compatible API root, including `/v1` where required. Strict JSON-schema output is the default; providers with JSON-object output can set `SCOUT_AI_FORMAT=json_object`, with the same strict server-side field checks. See the [official structured outputs guide](https://developers.openai.com/api/docs/guides/structured-outputs). No key is sent to the browser or committed. Missing configuration or provider failure is shown as a retryable error, with no fake fallback. Demo checkout requires a local account. Restart the dev server after changing credentials.
+
+For DeepSeek, use `SCOUT_AI_BASE_URL=https://api.deepseek.com`, `SCOUT_AI_MODEL=deepseek-flash`, and `SCOUT_AI_FORMAT=json_object`, following its [official JSON output guide](https://api-docs.deepseek.com/guides/json_mode/). Regional/account availability still needs a live call from your server; the implementation does not claim that Hong Kong availability has been verified.
+
+`scripts/browser-fixture-provider.mjs` is a test-only local HTTP response fixture. It is **not AI** and is never enabled by default. Its browser evidence is explicitly marked as a fixture replay, not a real-model acceptance test. If using it to reproduce UI tests, configure only the test process with `SCOUT_AI_BASE_URL=http://127.0.0.1:3211/v1`, `SCOUT_AI_MODEL=browser-fixture`, and a dummy key. Stop it and remove those test-process variables before a real demonstration.
 
 ```bash
 npm ci
@@ -75,8 +89,12 @@ app/
   register/page.tsx  # Create-account page
   account/page.tsx   # Protected account page
   actions/auth.ts    # Server actions: register / login / logout
-  actions/shop.ts    # Authenticated shopping actions
+  actions/demo.ts    # Current demo actions (authenticated)
+  actions/shop.ts    # Legacy shopping actions
 components/
+  demo-scout.tsx     # Authorization, request and basket flow
+  demo-basket.tsx    # Cross-merchant quote and actual role records
+  demo-authorization.tsx # Explicit address, validity and limits
   site-header.tsx    # Navbar (auth-aware)
   search-section.tsx # Mandate → list → offers → confirmation controller
   mandate-form.tsx   # Explicit authorization and text proposals
@@ -88,6 +106,9 @@ components/
   icons.tsx          # Inline SVG icons
   glow-backdrop.tsx  # Shared lime glow background
 lib/
+  demo-shop.ts      # Persistent basket state and server payment gate
+  shopper-ai.ts     # Real provider adapter, validated intent only
+  demo-catalog.ts   # Milk, portable cups and party essentials
   db.ts              # SQLite users, requests, attempts and orders; additive migration
   jwt.ts             # Session JWT sign/verify (jose, Edge-safe)
   password.ts        # scrypt password hashing
@@ -113,6 +134,7 @@ docker-compose.yml  # Runner with persisted SQLite volume
 npm test
 npm run test:coverage
 npm run lint
+node --experimental-sqlite node_modules/next/dist/bin/next typegen
 npx tsc --noEmit
 npm run build
 ```
