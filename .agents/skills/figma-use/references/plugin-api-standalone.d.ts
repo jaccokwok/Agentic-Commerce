@@ -1568,7 +1568,7 @@ interface SuggestionResults {
       | string
       | {
           name: string
-          data?: any
+          data?: unknown
           icon?: string | Uint8Array
           iconUrl?: string
         }
@@ -1610,7 +1610,7 @@ interface SuggestionResults {
 /**
  * @see https://developers.figma.com/docs/plugins/api/figma-parameters
  */
-interface ParametersAPI {}
+type ParametersAPI = NonNullable<unknown>
 /**
  * @see https://developers.figma.com/docs/plugins/api/NodeChangeProperty
  */
@@ -2285,7 +2285,7 @@ interface NoiseEffectBase {
   /**
    * Noise effects currently do not support binding variables.
    */
-  readonly boundVariables?: {}
+  readonly boundVariables?: NonNullable<unknown>
 }
 /**
  * @see https://developers.figma.com/docs/plugins/api/Effect
@@ -2363,7 +2363,7 @@ interface TextureEffect {
   /**
    * Texture effects currently do not support binding variables.
    */
-  readonly boundVariables?: {}
+  readonly boundVariables?: NonNullable<unknown>
 }
 /**
  * @see https://developers.figma.com/docs/plugins/api/Effect
@@ -2404,7 +2404,7 @@ interface GlassEffect {
   /**
    * Glass effects currently do not support binding variables.
    */
-  readonly boundVariables?: {}
+  readonly boundVariables?: NonNullable<unknown>
 }
 /**
  * A shader applied to a node's `effects`.
@@ -6532,7 +6532,7 @@ interface ExportMixin {
 
   exportAsync(settings: ExportSettingsSVGString): Promise<string>
 
-  exportAsync(settings: ExportSettingsREST): Promise<Object>
+  exportAsync(settings: ExportSettingsREST): Promise<object>
 }
 /**
  * @see https://developers.figma.com/docs/plugins/api/node-properties
@@ -7934,7 +7934,7 @@ interface NonResizableTextMixin extends BaseNonResizableTextMixin {
 /**
  * @see https://developers.figma.com/docs/plugins/api/TextPathNode
  */
-interface NonResizableTextPathMixin extends BaseNonResizableTextMixin {}
+type NonResizableTextPathMixin = BaseNonResizableTextMixin
 /**
  * @see https://developers.figma.com/docs/plugins/api/TextNode
  */
@@ -9490,7 +9490,7 @@ interface WidgetNode extends OpaqueNodeMixin, StickableMixin {
    * For more information, check out [this page in our widget documentation](https://figma.com/widget-docs/managing-multiple-widgets#widgetnodewidgetsyncedstate).
    */
   readonly widgetSyncedState: {
-    [key: string]: any
+    [key: string]: unknown
   }
   /**
    * Create an identical copy of this WidgetNode. By default, the duplicate will be parented under `figma.currentPage`.

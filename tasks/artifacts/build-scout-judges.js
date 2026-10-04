@@ -1,4 +1,6 @@
-const PptxGenJS = require("/tmp/pptx-deps/node_modules/pptxgenjs");
+async function main() {
+const { createRequire } = await import("node:module");
+const PptxGenJS = createRequire(__filename)("/tmp/pptx-deps/node_modules/pptxgenjs");
 
 const pres = new PptxGenJS();
 pres.defineLayout({ name: "WIDE", width: 13.3, height: 7.5 });
@@ -1114,9 +1116,14 @@ function chip(slide, x, y, w, text, fill) {
   footer(s, true);
 }
 
-pres.writeFile({ fileName: "/Users/bono/Desktop/Agentic-Commerce/tasks/artifacts/scout-judges.pptx" })
+await pres.writeFile({ fileName: "/Users/bono/Desktop/Agentic-Commerce/tasks/artifacts/scout-judges.pptx" })
   .then(() => console.log("wrote", page, "slides"))
   .catch((error) => {
     console.error(error);
     process.exit(1);
   });
+}
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

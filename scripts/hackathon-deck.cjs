@@ -1,4 +1,5 @@
-const { createRequire } = require("node:module");
+async function main() {
+const { createRequire } = await import("node:module");
 const PptxGenJS = createRequire("/tmp/scout-pptx/package.json")("pptxgenjs");
 
 const INK = "141414";
@@ -567,9 +568,14 @@ function logWell(slide, x, y, w, lines) {
   slide.addNotes("Stop on the overspend line. If a judge wants the conversation, scroll the happy block: validate_form, negotiate, credentials_ok, then the payer.");
 }
 
-pres.writeFile({ fileName: "tasks/artifacts/scout-hackathon.pptx" })
+await pres.writeFile({ fileName: "tasks/artifacts/scout-hackathon.pptx" })
   .then(() => console.log("wrote tasks/artifacts/scout-hackathon.pptx"))
   .catch((error) => {
     console.error(error);
     process.exit(1);
   });
+}
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
