@@ -1,24 +1,46 @@
 import type { Offer } from "@/lib/catalog";
 import type { Goal } from "@/lib/intent";
-import { allows, type Mandate } from "@/lib/mandate";
+import { allows, askedMixes, type Mandate, type PaymentObjective } from "@/lib/mandate";
 import { toHKD } from "@/lib/fx";
 import { PAY_TENDERS, priceLine, type PayTender } from "@/lib/money";
 
 export const DEFAULT_WEIGHTS = { relevance: 0.35, cash: 0.25, rating: 0.15, purchases: 0.10, history: 0.15 };
 export type Weights = typeof DEFAULT_WEIGHTS;
+export const OBJECTIVE_WEIGHTS: Record<PaymentObjective, Weights> = {
+  balanced: DEFAULT_WEIGHTS,
+  lowest_cash: { relevance: 0.2, cash: 0.6, rating: 0.1, purchases: 0.05, history: 0.05 },
+  relevance: { relevance: 0.6, cash: 0.2, rating: 0.1, purchases: 0.05, history: 0.05 },
+  rating: { relevance: 0.2, cash: 0.1, rating: 0.6, purchases: 0.05, history: 0.05 },
+  popular: { relevance: 0.2, cash: 0.1, rating: 0.05, purchases: 0.6, history: 0.05 },
+  familiar: { relevance: 0.2, cash: 0.1, rating: 0.05, purchases: 0.05, history: 0.6 },
+};
+export function weightsFor(objective: PaymentObjective): Weights {
+  return OBJECTIVE_WEIGHTS[objective];
+}
 export type RankedOffer = { offer: Offer; money: ReturnType<typeof priceLine>; tender: PayTender; score: number; weights: Weights; breakdown: Weights; rewardBonus: number };
 function payableTenders(m: Mandate): PayTender[] {
   const listed = m.tenders.length ? m.tenders : ["card"];
   return listed.filter((tender): tender is PayTender => (PAY_TENDERS as readonly string[]).includes(tender));
 }
+function sameWeights(a: Weights, b: Weights) {
+  return (Object.keys(a) as (keyof Weights)[]).every(key => a[key] === b[key]);
+}
+function shareLine(weights: Weights) {
+  return `relevance ${weights.relevance}, cash ${weights.cash}, rating ${weights.rating}, purchases ${weights.purchases}, history ${weights.history}`;
+}
 export function resolveWeights(text: string, explicit?: Weights) {
-  const inferred = /cheapest|lowest\s*cash|最便宜|最低现金/i.test(text) ? { relevance: 0.2, cash: 0.6, rating: 0.1, purchases: 0.05, history: 0.05 } : DEFAULT_WEIGHTS;
-  const weights = explicit ?? inferred;
+  const asked = askedMixes(text);
+  const named = asked.length === 1 ? OBJECTIVE_WEIGHTS[asked[0].objective] : DEFAULT_WEIGHTS;
+  const weights = explicit ?? named;
   const invalid = Object.values(weights).some((n) => !Number.isFinite(n) || n < 0);
-  const conflict = explicit && inferred !== DEFAULT_WEIGHTS && Object.keys(inferred).some(k => explicit[k as keyof Weights] !== inferred[k as keyof Weights]);
-  const asked = explicit ? `relevance ${explicit.relevance}, cash ${explicit.cash}, rating ${explicit.rating}, purchases ${explicit.purchases}, history ${explicit.history}` : "";
-  return { status: invalid ? "terminate" as const : conflict ? "clarify" as const : "ready" as const, weights,
-    reason: invalid ? "Weights must be finite and at least 0" : conflict ? `The sentence asks for the cheapest offer. The mandate comparison is ${asked}. Confirm to keep that comparison.` : "Ranking weights resolved" };
+  const saved = shareLine(weights);
+  const labels = asked.map(row => row.label).join(" and ");
+  const conflict = asked.length > 1 || (asked.length === 1 && !sameWeights(weights, OBJECTIVE_WEIGHTS[asked[0].objective]));
+  const reason = invalid ? "Weights must be finite and at least 0"
+    : asked.length > 1 ? `The sentence asks for the ${labels} comparisons. The mandate comparison is ${saved}. Confirm to keep that comparison.`
+    : conflict ? `The sentence asks for the ${labels} comparison. The mandate comparison is ${saved}. Confirm to keep that comparison.`
+    : "Ranking weights resolved";
+  return { status: invalid ? "terminate" as const : conflict ? "clarify" as const : "ready" as const, weights, reason };
 }
 export function offerMoney(offer: Offer, qty: number, includeRewards: boolean, tender?: PayTender) {
   const rule = [...(offer.cardRule ? [offer.cardRule] : []), ...(offer.cardRules ?? [])].find(item => item.tender === tender);

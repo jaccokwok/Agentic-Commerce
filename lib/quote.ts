@@ -1,5 +1,5 @@
 import type { Offer } from "@/lib/catalog";
-import { checkMandate, allows, type Mandate, type Decision } from "@/lib/mandate";
+import { checkMandate, allows, looselyMatches, type Mandate, type Decision } from "@/lib/mandate";
 import { PAY_TENDERS, type PayTender } from "@/lib/money";
 import { choosePrice } from "@/lib/rank";
 import { RATE_TIMESTAMP, toHKD } from "@/lib/fx";
@@ -45,7 +45,7 @@ export function checkQuote(q: Quote, m: Mandate, shareRemaining: number, rolling
   if (!allowedTenders(m).includes(q.tender as PayTender)) return { status: "terminate", reason: "Tender is not an allowed mock card or wallet" };
   if (!allows(m, q.merchantId, q.categoryId, q.platformId)) {
     const named = q.platformId && q.platformId !== q.merchantId ? `${q.merchantId} (${q.platformId})` : q.merchantId;
-    const categoryBlocked = m.categoryDeny.includes(q.categoryId) || (m.categoryAllow.length > 0 && !m.categoryAllow.includes(q.categoryId));
+    const categoryBlocked = m.categoryDeny.some(id => looselyMatches(id, q.categoryId)) || (m.categoryAllow.length > 0 && !m.categoryAllow.some(id => looselyMatches(id, q.categoryId)));
     const list = m.merchantAllow.length ? ` Allow list: ${m.merchantAllow.join(", ")}.` : "";
     return { status: "terminate", reason: categoryBlocked ? `Category ${q.categoryId} is not allowed by the mandate.` : `Merchant ${named} is not allowed by the mandate.${list}` };
   }

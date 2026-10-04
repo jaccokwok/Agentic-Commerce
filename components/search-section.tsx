@@ -13,6 +13,24 @@ import { parseIntent, statedQuantity } from "@/lib/intent";
 import type { Mandate } from "@/lib/mandate";
 import type { RequestDraft } from "@/lib/shop-service";
 
+const FOOD_MENU = [
+  { label: "Groceries", items: [
+    { label: "Plain rice", query: "plain rice" },
+    { label: "Noodles", query: "noodles" },
+    { label: "Milk", query: "milk" },
+    { label: "Bread", query: "bread" },
+    { label: "Eggs", query: "eggs" },
+    { label: "Cooking oil", query: "cooking oil" },
+  ] },
+  { label: "Snacks", items: [
+    { label: "Chips", query: "chips" },
+    { label: "Cookies", query: "cookies" },
+    { label: "Chocolate", query: "chocolate" },
+    { label: "Nuts", query: "nuts" },
+    { label: "Snack box", query: "snacks" },
+  ] },
+];
+
 function sharesFor(ids: string[], budget: number): Record<string, number> | null {
   const total = cents(budget);
   const base = Math.floor(total / ids.length);
@@ -172,7 +190,7 @@ export default function SearchSection({ signedIn, initialMandate, initialSpent }
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Red balloons"
+            placeholder="Plain rice"
             className="w-full rounded-full border border-white bg-white py-3.5 pr-14 pl-5 text-base shadow-sm outline-none"
           />
           <button type="submit" aria-label="Search" disabled={busy} className="absolute top-1/2 right-2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-neutral-700">
@@ -183,6 +201,27 @@ export default function SearchSection({ signedIn, initialMandate, initialSpent }
           </button>
         </label>
       </form>
+      <section aria-label="Foods you can ask for" className="mt-6 w-full text-sm">
+        <p className="text-center text-neutral-600">You can ask for</p>
+        <dl className="mt-3 space-y-2">
+          {FOOD_MENU.map((group) => (
+            <div key={group.label} className="flex flex-wrap items-baseline justify-center gap-x-3 gap-y-1">
+              <dt className="text-neutral-500">{group.label}</dt>
+              {group.items.map((item) => (
+                <dd key={item.query}>
+                  <button
+                    type="button"
+                    className="text-neutral-900 underline decoration-neutral-400 underline-offset-4"
+                    onClick={() => setQuery(item.query)}
+                  >
+                    {item.label}
+                  </button>
+                </dd>
+              ))}
+            </div>
+          ))}
+        </dl>
+      </section>
       {signedIn && (
         <button type="button" className="mt-4 text-sm font-medium text-neutral-700 underline" onClick={() => setMandateOpen(true)}>
           Change mandate

@@ -8,6 +8,7 @@ import TraceLog from "@/components/trace-log";
 import { getSessionUser } from "@/lib/auth";
 import { getUserById } from "@/lib/db";
 import { currentSpend, latestReceipt, traceForReceipt } from "@/lib/ledger";
+import { maskId } from "@/lib/mask-id";
 
 export const metadata: Metadata = {
   title: "Your account — Scout",
@@ -61,9 +62,9 @@ export default async function AccountPage() {
           <div className="mt-7 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-left">
             <h2 className="font-semibold">Mock payment references</h2>
             <dl className="mt-3 space-y-3 text-sm">
-              <div><dt>Vault ID</dt><dd className="break-all font-mono text-xs">{record?.vault_id}</dd></div>
-              <div><dt>DID</dt><dd className="break-all font-mono text-xs">{record?.did}</dd></div>
-              <div><dt>Address ID</dt><dd className="break-all font-mono text-xs">{record?.address_id}</dd></div>
+              <div><dt>Vault ID</dt><dd className="break-all font-mono text-xs">{record?.vault_id ? maskId(record.vault_id) : ""}</dd></div>
+              <div><dt>DID</dt><dd className="break-all font-mono text-xs">{record?.did ? maskId(record.did) : ""}</dd></div>
+              <div><dt>Address ID</dt><dd className="break-all font-mono text-xs">{record?.address_id ? maskId(record.address_id) : ""}</dd></div>
               <div><dt>Spent in the preceding 168 hours</dt><dd className="font-semibold">HKD {spent.toFixed(2)}</dd></div>
               {latest && <>
                 <div><dt>Latest cash booked</dt><dd className="font-semibold">HKD {(latest.cash_cents / 100).toFixed(2)}</dd></div>

@@ -40,11 +40,11 @@ flowchart TD
 
 ## 1. The shopper resolves the weights
 
-The unset form is balanced: relevance 0.35, cash 0.25, rating 0.15, purchases 0.10, history 0.15. A form set to lowest cash uses 0.20, 0.60, 0.10, 0.05, 0.05.
+The unset form is balanced: relevance 0.35, cash 0.25, rating 0.15, purchases 0.10, history 0.15. The form’s payment objective is the only way to switch the mix. A shopping sentence does not set it.
 
 ### Step 1
 
-- **Situation.** The form is valid. The sentence is ordinary, or the form already says lowest cash.
+- **Situation.** The form is valid. The sentence names no mix, or it names the mix already saved on the form.
 - **Who.** shopper
 - **To.** No other role
 - **Task.** Take the vector from the form. If the attempt carries its own five numbers, take those instead.
@@ -53,12 +53,12 @@ The unset form is balanced: relevance 0.35, cash 0.25, rating 0.15, purchases 0.
 
 ### Step 2
 
-- **Situation.** The form is balanced, and the sentence says cheapest, lowest cash, 最便宜, or 最低现金.
+- **Situation.** The sentence names a packaged mix that is not the one saved on the form. One phrase is enough: cheapest, lowest cash, 最便宜, or 最低现金; most relevant, best match, or 最相关; highest rated, best rated, top rated, or 评分最高; most popular, popularity, 最热门, or 人气; bought before, familiar, or 买过. Two named mixes in one sentence are the same conflict.
 - **Who.** shopper
 - **To.** the person
-- **Task.** Ask them to confirm the conflict, and keep the form’s vector on the quote path.
-- **Why.** A phrase in one sentence and a signed objective are two instructions. The signed one stays unless the person edits the form.
-- **Result.** After they confirm, ranking uses 0.35, 0.25, 0.15, 0.10, 0.15. If they decline, the attempt stops.
+- **Task.** Ask them to confirm, and keep the form’s vector on the quote path.
+- **Why.** A phrase in one sentence and a signed objective are two instructions. The signed one stays unless the person picks another mix on the form and saves it.
+- **Result.** After they confirm, ranking uses the form’s shares. If they decline, the attempt stops.
 
 ### Step 3
 
@@ -205,7 +205,20 @@ A weighted sum is the usual way to add unlike facts. Each fact is turned into a 
 
 **Relevance.** The hard filters already removed a row that did not match the sentence. Among the rows that remain, relevance is the same number on every score, so it does not change their order. It is kept at 0.35, the largest share, so the card shows that matching the request was the largest concern in the balanced mode, and so a later partial match can use this same slot. Setting it to 0 would make the card say the request did not count.
 
-**Cash.** Second, because the job is to compare what the person pays, and the balanced mode is not “cheapest only.” A form set to lowest cash moves this share from 0.25 to 0.60 and shrinks the others to 0.20, 0.10, 0.05, 0.05. The same price gap then weighs more than stars or popularity. The phrase “cheapest” asks the person when the form is still balanced. After they confirm, the form’s shares remain.
+**Cash.** Second, because the job is to compare what the person pays, and the balanced mode is not “cheapest only.” A form set to lowest cash moves this share from 0.25 to 0.60 and shrinks the others to 0.20, 0.10, 0.05, 0.05. The same price gap then weighs more than stars or popularity. A sentence that names a different mix asks the person. After they confirm, the form’s shares remain.
+
+**The other packaged mixes.** Each one puts 0.60 on its lead part. Relevance stays 0.20 when it is not the lead, so the card still says the request counted. The other three parts are 0.10, 0.05, and 0.05. They add to 1.
+
+| Mix | Relevance | Cash | Rating | Purchases | History |
+| --- | --- | --- | --- | --- | --- |
+| Balanced | 0.35 | 0.25 | 0.15 | 0.10 | 0.15 |
+| Lowest cash | 0.20 | 0.60 | 0.10 | 0.05 | 0.05 |
+| Relevance | 0.60 | 0.20 | 0.10 | 0.05 | 0.05 |
+| Rating | 0.20 | 0.10 | 0.60 | 0.05 | 0.05 |
+| Popular | 0.20 | 0.10 | 0.05 | 0.60 | 0.05 |
+| Familiar | 0.20 | 0.10 | 0.05 | 0.05 | 0.60 |
+
+A relevance mix does not reorder rows that already matched the category, brand, and color. Every survivor still receives the full relevance share. That mix makes matching the largest share on the card and shrinks price, stars, and popularity. Popular, rating, familiar, and lowest cash do change the order. The person picks the mix on the mandate form. A sentence cannot switch it.
 
 **Rating and history.** Equal, and both smaller than cash. Stars are a quality grade on a 0-to-1 scale. History is yes or no: this person has accepted this sku before. That is a familiarity signal. The separate 72-hour question before pay is the safety check for buying the same sku again immediately. Using that same 72-hour window as the score would shrink a familiar item at the moment the person is being asked about it. Any earlier booking keeps the familiarity signal, and the 72-hour rule stays a question.
 
@@ -256,7 +269,7 @@ A booking stores the attempt’s trace id. The same idempotency key and the same
 
 # Sources for the shares
 
-The shares themselves are a prior for two catalogue categories, snacks and balloons. No sales sample was used to estimate 0.35 or 0.25.
+The shares themselves are a prior for two catalogue categories, snacks and groceries. No sales sample was used to estimate 0.35 or 0.25. An allow or deny entry matches a category or a merchant loosely: a plural, a hyphen, or one edit still counts. A word that is not that close, such as toy or balloon, does not.
 
 The shape of the sum is the weighted-sum method: normalise each criterion, multiply by a weight, add. A cost criterion is reversed so that lower cash scores higher. That normalisation, `(highest − this) / highest`, is the linear scale transformation for a cost when the lower end is taken as 0. See Hwang and Yoon, *Multiple Attribute Decision Making* (Springer, 1981), and the weighted-sum account in Triantaphyllou, *Multi-Criteria Decision Making Methods* (Springer, 2000).
 

@@ -1,5 +1,5 @@
 const QWEN_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions";
-const PARSE = `Return only JSON with keys goals, qty, brand, appearance, budgetHint. goals is an array of "snacks" and "balloons". qty is a whole number or null. brand is a string or null. appearance is "red", "blue", or null. budgetHint is a number or null. Do not include price, shipping, tender, merchant, or confirm mode.`;
+const PARSE = `Return only JSON with keys goals, qty, brand, appearance, budgetHint. goals is an array of "snacks" and "groceries". qty is a whole number or null. brand is a string or null. appearance is "plain" or null. budgetHint is a number or null. Do not include price, shipping, tender, merchant, or confirm mode.`;
 const EXPLAIN = `Return only JSON {"explanation":"one sentence"} about this tool result. Do not change cash, status, coupon, sku, shipping, signature, or limits.`;
 const PROPOSE = `Return only JSON with keys to and type. to is merchant, mandate, or auditor. type is negotiate, review_text, filter_catalog, check_cash, validate_form, still_valid, request_conflict, filter_limits, or stop. Do not return payer, charge, or retry. Do not include cash, shipping, or a signature.`;
 

@@ -16,9 +16,9 @@ async function setup() {
 afterEach(() => databases.splice(0).forEach(d => d.close()));
 test("server owns mandate, quote and payment refs; other users cannot access requests", async () => {
   const { db, user } = await setup();
-  const req = createRequest(user.id, { text: "balloons", goals: [{ ...parseIntent("balloons").goals[0], qty: 1 }], shares: { balloons: 350 }, budget: 350, partialAccepted: false }, 1000, db);
-  await expect(searchRequest(999, req.id, "balloons", undefined, false, 1000, db)).rejects.toThrow();
-  const a = await searchRequest(user.id, req.id, "balloons", undefined, false, 1000, db);
+  const req = createRequest(user.id, { text: "rice", goals: [{ ...parseIntent("rice").goals[0], qty: 1 }], shares: { groceries: 350 }, budget: 350, partialAccepted: false }, 1000, db);
+  await expect(searchRequest(999, req.id, "groceries", undefined, false, 1000, db)).rejects.toThrow();
+  const a = await searchRequest(user.id, req.id, "groceries", undefined, false, 1000, db);
   await expect(actOnAttempt(999, a.id, { type: "confirm", version: a.quoteVersion }, 1000, db)).rejects.toThrow();
   expect((await actOnAttempt(user.id, a.id, { type: "confirm", version: a.quoteVersion }, 1000, db)).status).toBe("paid");
   expect((await actOnAttempt(user.id, a.id, { type: "confirm", version: a.quoteVersion }, 1000, db)).status).toBe("paid");
@@ -41,8 +41,8 @@ test("mandate changes or revocation cancel outstanding coupons", async () => {
 });
 test("split request completes both goals from fixed shares without borrowing", async () => {
   const { db, user } = await setup();
-  const req = createRequest(user.id, { text: "party items budget 350", goals: parseIntent("party items").goals.map(g => ({ ...g, qty: 1 })), shares: { snacks: 175, balloons: 175 }, budget: 350, partialAccepted: true }, 1000, db);
-  for (const goalId of ["snacks", "balloons"]) {
+  const req = createRequest(user.id, { text: "food budget 350", goals: parseIntent("food").goals.map(g => ({ ...g, qty: 1 })), shares: { snacks: 175, groceries: 175 }, budget: 350, partialAccepted: true }, 1000, db);
+  for (const goalId of ["snacks", "groceries"]) {
     const a = await searchRequest(user.id, req.id, goalId, undefined, false, 1000, db);
     expect(a.status).toBe("quote");
     expect((await actOnAttempt(user.id, a.id, { type: "confirm", version: a.quoteVersion }, 1000, db)).status).toBe("paid");
@@ -50,9 +50,9 @@ test("split request completes both goals from fixed shares without borrowing", a
 });
 test("two prepared payments cannot spend the same goal share twice", async () => {
   const { db, user } = await setup();
-  const req = createRequest(user.id, { text: "balloons", goals: [{ ...parseIntent("balloons").goals[0], qty: 1 }], shares: { balloons: 100 }, budget: 100, partialAccepted: false }, 1000, db);
-  const a = await searchRequest(user.id, req.id, "balloons", "party-shop", false, 1000, db);
-  const b = await searchRequest(user.id, req.id, "balloons", "party-shop", false, 1000, db);
+  const req = createRequest(user.id, { text: "rice", goals: [{ ...parseIntent("rice").goals[0], qty: 1 }], shares: { groceries: 100 }, budget: 100, partialAccepted: false }, 1000, db);
+  const a = await searchRequest(user.id, req.id, "groceries", "party-shop", false, 1000, db);
+  const b = await searchRequest(user.id, req.id, "groceries", "party-shop", false, 1000, db);
   expect((await actOnAttempt(user.id, a.id, { type: "confirm", version: a.quoteVersion }, 1000, db)).status).toBe("paid");
   expect((await actOnAttempt(user.id, b.id, { type: "confirm", version: b.quoteVersion }, 1000, db)).status).toBe("terminate");
   expect(spent7d(user.id, 1000, db)).toBe(60);
@@ -60,7 +60,7 @@ test("two prepared payments cannot spend the same goal share twice", async () =>
 test("automatic mode uses the server-stored authorization and stored payment refs", async () => {
   const { db, user } = await setup();
   await saveMandate(user.id, { ...defaultMandate(), confirmMode: "auto" }, db);
-  const req = createRequest(user.id, { text: "balloons", goals: [{ ...parseIntent("balloons").goals[0], qty: 1 }], shares: { balloons: 350 }, budget: 350, partialAccepted: false }, 1000, db);
-  expect((await searchRequest(user.id, req.id, "balloons", "party-shop", false, 1000, db)).status).toBe("paid");
+  const req = createRequest(user.id, { text: "rice", goals: [{ ...parseIntent("rice").goals[0], qty: 1 }], shares: { groceries: 350 }, budget: 350, partialAccepted: false }, 1000, db);
+  expect((await searchRequest(user.id, req.id, "groceries", "party-shop", false, 1000, db)).status).toBe("paid");
   expect(spent7d(user.id, 1000, db)).toBe(60);
 });

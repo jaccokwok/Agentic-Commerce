@@ -77,7 +77,7 @@ export default function MandateDialog({ open, signedIn, current, editing, disabl
       {step === "write" ? (
         <>
           <p className="shop-muted mt-2">
-            Write limits, confirm mode, and tenders in one sentence. A sentence cannot raise a limit, switch confirm mode, or name an allowed merchant.
+            Write limits, confirm mode, and tenders in one sentence. A sentence cannot raise a limit, switch confirm mode, switch the comparison mix, or name an allowed merchant.
             {editing
               ? " Unmentioned fields stay on your saved mandate. Type a higher limit on the form."
               : " Unmentioned fields stay at the defaults: 250 per item, 400 per order, 1,000 rolling 7 days, manual confirm, card, rewards on, no expiry."}
@@ -123,7 +123,12 @@ export default function MandateDialog({ open, signedIn, current, editing, disabl
             </label>
             <label>Payment objective
               <select value={form.paymentObjective} disabled={disabled} onChange={(event) => setForm({ ...form, paymentObjective: event.target.value as Mandate["paymentObjective"] })}>
-                <option value="balanced">balanced</option><option value="lowest_cash">lowest cash</option>
+                <option value="balanced">balanced</option>
+                <option value="lowest_cash">lowest cash</option>
+                <option value="relevance">relevance</option>
+                <option value="rating">rating</option>
+                <option value="popular">popular</option>
+                <option value="familiar">familiar</option>
               </select>
             </label>
             <label>Expiry (leave blank for none)

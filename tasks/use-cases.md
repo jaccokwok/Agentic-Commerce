@@ -137,7 +137,7 @@ flowchart LR
 
 **Highest cash and highest count.** At least 1, so one row does not divide by zero.
 
-Default weights are relevance 0.35, cash 0.25, rating 0.15, purchases 0.10, history 0.15. “Cheapest” uses 0.20, 0.60, 0.10, 0.05, 0.05. Why these shares, and why each role chooses, is in [decisions.md](decisions.md). A full worked cash example is in [Scores, money, and limits](#scores-money-and-limits).
+The form’s payment objective picks the five shares. Balanced is relevance 0.35, cash 0.25, rating 0.15, purchases 0.10, history 0.15. Lowest cash, relevance, rating, popular, and familiar each put 0.60 on that part. Why these shares, and why each role chooses, is in [decisions.md](decisions.md). A full worked cash example is in [Scores, money, and limits](#scores-money-and-limits).
 
 ## Words on the gates
 
@@ -178,16 +178,16 @@ Checkout copies one idea from Stripe’s Agentic Commerce Protocol: pay by a sto
 
 ## 1. A normal purchase
 
-The person says “red balloons” and later confirms. Cash booked: 60 (shelf 50 + shipping 10).
+The person says “plain rice” and later confirms. Cash booked: 60 (shelf 50 + shipping 10).
 
 ### Step 1
 
-- **Situation.** The person has named red balloons.
+- **Situation.** The person has named plain rice.
 - **Who.** shopper
 - **To.** No other role
 - **Task.** Turn the sentence into a catalogue goal. Quantity and brand stay editable.
-- **Why.** The shop only sells snacks and balloons. A sentence that tries to override the form must not become a search.
-- **Result.** One balloon goal is ready.
+- **Why.** The shop only sells snacks and groceries. A sentence that tries to override the form must not become a search.
+- **Result.** One groceries goal is ready. Brand is Rice. Appearance is plain.
 
 ### Step 2
 
@@ -232,7 +232,7 @@ The person says “red balloons” and later confirms. Cash booked: 60 (shelf 50
 - **To.** mandate
 - **Task.** Ask which rows fit the cash limits.
 - **Why.** A row over the per-item, per-order, share, or 168-hour limit must not be ranked.
-- **Result.** The balloon rows fit.
+- **Result.** The rice row fits.
 
 ### Step 7
 
@@ -241,7 +241,7 @@ The person says “red balloons” and later confirms. Cash booked: 60 (shelf 50
 - **To.** No other role
 - **Task.** Score them and keep the top three from the winning seller.
 - **Why.** One order uses one seller. The score prefers a relevant, cheaper, well-rated row. See the formulas below.
-- **Result.** Three offers, one seller. The winner is on Taobao.
+- **Result.** Plain rice from party-shop on Taobao. A groceries search with no brand still keeps three offers from that seller.
 
 ### Step 8
 
@@ -324,7 +324,7 @@ If nobody answers within 120 seconds, the attempt stops and the coupon stays unu
 
 ### Step 1
 
-- **Situation.** The person asks for red balloons. The form’s expiry is already past.
+- **Situation.** The person asks for plain rice. The form’s expiry is already past.
 - **Who.** shopper
 - **To.** mandate
 - **Task.** Ask if the form is valid.
@@ -339,7 +339,7 @@ A revoked form ends the same way.
 
 ### Step 1
 
-- **Situation.** The person says to ignore the mandate and buy balloons.
+- **Situation.** The person says to ignore the mandate and buy rice.
 - **Who.** shopper
 - **To.** No other role
 - **Task.** Read the sentence before any search.
@@ -631,7 +631,7 @@ A charge sent before this pass is refused. The payer is not called.
 
 ### Step 1
 
-- **Situation.** The switch is on. The person said “red balloons.”
+- **Situation.** The switch is on. The person said “plain rice.”
 - **Who.** shopper
 - **To.** the model
 - **Task.** Ask for a draft of goals, quantity, brand, appearance, and a budget hint.
@@ -656,7 +656,7 @@ A charge sent before this pass is refused. The payer is not called.
 - **Why.** The model may propose. It may not invent a charge.
 - **Result.** If the proposal matches the tool’s next message, that message is sent (`model_turn_ok`). If it differs, or if it names the payer, a charge, or a retry, the proposal is refused (`model_turn_rejected`) and the tool’s message is sent anyway.
 
-One live “red balloons” search did this. It ended at a quote. Cash stayed 60. The first proposal matched negotiate. Two later proposals were refused.
+One live “plain rice” search did this. It ended at a quote. Cash stayed 60. The first proposal matched negotiate. Two later proposals were refused.
 
 ---
 
@@ -666,7 +666,7 @@ HKTV: merchandise 280, shipping 20, 40 off when merchandise is at least 250 and 
 
 ### Step 1
 
-- **Situation.** Two balloon rows are still in the race. The form allows card.
+- **Situation.** Two grocery rows are still in the race. The form allows card.
 - **Who.** shopper
 - **To.** No other role
 - **Task.** Price each row for card.
@@ -714,7 +714,7 @@ Merchandise 280, shipping 20. The form lists hsbc-visa, citi-mastercard, and wal
 
 ### Step 1
 
-- **Situation.** One balloon row. The form lists hsbc-visa, citi-mastercard, and wallet.
+- **Situation.** One grocery row. The form lists hsbc-visa, citi-mastercard, and wallet.
 - **Who.** shopper
 - **To.** No other role
 - **Task.** Price the row for each allowed tender and keep the lowest cash.
@@ -743,7 +743,7 @@ Merchandise 280, shipping 20. The form lists hsbc-visa, citi-mastercard, and wal
 
 ## 28. The account already holds the payment reference
 
-Creating the account writes the vault id and the address id. Starting an attempt writes one idempotency key. A confirmed quote already stores the tender and the cash. The charge copies those four, plus currency and expiry. The red-balloon quote is tender card and cash 60.
+Creating the account writes the vault id and the address id. Starting an attempt writes one idempotency key. A confirmed quote already stores the tender and the cash. The charge copies those four, plus currency and expiry. The plain-rice quote is tender card and cash 60.
 
 ### Step 1
 
@@ -809,7 +809,7 @@ Worked example from the money rule:
 | Coupon 80 | merchandise = 320 |
 | Shipping 30 | cash = 350 |
 
-The red-balloon quote in the demo is the same rule at a smaller size: shelf 50 + shipping 10 = cash 60. That row has no card rule, so the discount is 0.
+The plain-rice quote in the demo is the same rule at a smaller size: shelf 50 + shipping 10 = cash 60. That row has no card rule, so the discount is 0.
 
 A card rule, rewards aside:
 
@@ -864,7 +864,7 @@ HKD = round(amount × rate, to the cent)
 
 Each remaining row gets one score. Higher is better.
 
-Default weights, used unless the sentence asks for cheapest:
+The form’s payment objective sets the vector. Balanced, the unset form, is:
 
 | Part | Weight |
 | --- | --- |
@@ -874,7 +874,17 @@ Default weights, used unless the sentence asks for cheapest:
 | Purchase count | 0.10 |
 | Bought this sku before | 0.15 |
 
-The form’s payment objective sets the vector. Balanced uses the table above. Lowest cash uses 0.20, 0.60, 0.10, 0.05, 0.05. A sentence that says cheapest, lowest cash, 最便宜, or 最低现金, while the form is balanced, asks the person. After they confirm, the form’s vector remains. Weights do not have to add up to 1. A negative or non-numeric weight stops the attempt. The reasons are in [decisions.md](decisions.md).
+The other five mixes put 0.60 on the lead part. Relevance stays 0.20 when it is not the lead. The rest are 0.10, 0.05, and 0.05.
+
+| Mix | Relevance | Cash | Rating | Purchases | History |
+| --- | --- | --- | --- | --- | --- |
+| Lowest cash | 0.20 | 0.60 | 0.10 | 0.05 | 0.05 |
+| Relevance | 0.60 | 0.20 | 0.10 | 0.05 | 0.05 |
+| Rating | 0.20 | 0.10 | 0.60 | 0.05 | 0.05 |
+| Popular | 0.20 | 0.10 | 0.05 | 0.60 | 0.05 |
+| Familiar | 0.20 | 0.10 | 0.05 | 0.05 | 0.60 |
+
+The person picks the mix on the mandate form. A sentence that names a different mix asks. After they confirm, the form’s vector remains. A relevance mix does not reorder rows that already matched. Weights do not have to add up to 1. A negative or non-numeric weight stops the attempt. The reasons are in [decisions.md](decisions.md).
 
 For each row, using the rows still in the race:
 

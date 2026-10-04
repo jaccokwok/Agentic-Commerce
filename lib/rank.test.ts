@@ -1,10 +1,10 @@
 import { expect, test } from "vitest";
-import { rankOffers, resolveWeights, DEFAULT_WEIGHTS } from "@/lib/rank";
+import { rankOffers, resolveWeights, weightsFor, DEFAULT_WEIGHTS, OBJECTIVE_WEIGHTS } from "@/lib/rank";
 import { loadCatalog } from "@/lib/catalog";
 import { defaultMandate } from "@/lib/mandate";
 import { parseIntent } from "@/lib/intent";
 
-const goal = { ...parseIntent("red balloons").goals[0], qty: 1 };
+const goal = { ...parseIntent("groceries").goals[0], qty: 1 };
 test("top three share one merchant, show default weights and use cash independently", () => {
   const ranked = rankOffers(loadCatalog().offers, goal, defaultMandate(), []);
   expect(ranked.offers).toHaveLength(3);
@@ -26,18 +26,45 @@ test("explicit weights override inferred values but contradictions require clari
   const explicit = { ...DEFAULT_WEIGHTS };
   const clash = resolveWeights("cheapest", explicit);
   expect(clash.status).toBe("clarify");
-  expect(clash.reason).toContain("cheapest");
+  expect(clash.reason).toContain("lowest cash");
   expect(clash.reason).toContain("cash 0.25");
   expect(resolveWeights("", explicit).status).toBe("ready");
 });
+test("each named mix resolves to its vector and a clash keeps the form", () => {
+  expect(resolveWeights("most relevant").weights).toEqual(OBJECTIVE_WEIGHTS.relevance);
+  expect(resolveWeights("highest rated").weights).toEqual(OBJECTIVE_WEIGHTS.rating);
+  expect(resolveWeights("most popular").weights).toEqual(OBJECTIVE_WEIGHTS.popular);
+  expect(resolveWeights("bought before").weights).toEqual(OBJECTIVE_WEIGHTS.familiar);
+  expect(resolveWeights("最便宜").weights).toEqual(OBJECTIVE_WEIGHTS.lowest_cash);
+  const kept = resolveWeights("most popular", DEFAULT_WEIGHTS);
+  expect(kept.status).toBe("clarify");
+  expect(kept.weights).toEqual(DEFAULT_WEIGHTS);
+  expect(kept.reason).toContain("popular");
+  expect(kept.reason).toContain("cash 0.25");
+  const both = resolveWeights("cheapest and most popular", DEFAULT_WEIGHTS);
+  expect(both.status).toBe("clarify");
+  expect(both.reason).toContain("lowest cash");
+  expect(both.reason).toContain("popular");
+  expect(both.weights).toEqual(DEFAULT_WEIGHTS);
+});
+test("the popular mix ranks the higher purchase count first", () => {
+  const base = loadCatalog().offers.find(o => o.brand === "Rice" && o.appearance === "plain");
+  if (!base) throw new Error("missing rice");
+  const row = (sku_id: string, shelf: number, purchase_count: number) => ({
+    ...base, sku_id, merchant_id: "party-shop", shelf, human_price: shelf, agent_price: shelf, coupon: 0, shipping: 10,
+    rating: 4, purchase_count, reward: { gift: 0, rate: 0, terms: "none" },
+  });
+  const ranked = rankOffers([row("few", 50, 10), row("many", 80, 500)], goal, defaultMandate(), [], weightsFor("popular"));
+  expect(ranked.offers[0].offer.sku_id).toBe("many");
+});
 test("one cash override does not have to sum to 1", () => {
   const explicit = { ...DEFAULT_WEIGHTS, cash: 0.5 };
-  expect(resolveWeights("red balloons", explicit)).toMatchObject({ status: "ready", weights: explicit });
-  expect(resolveWeights("cheapest balloons", explicit)).toMatchObject({ status: "clarify", weights: explicit });
+  expect(resolveWeights("plain rice", explicit)).toMatchObject({ status: "ready", weights: explicit });
+  expect(resolveWeights("cheapest rice", explicit)).toMatchObject({ status: "clarify", weights: explicit });
 });
 test("a card discount can change the winning seller", () => {
-  const base = loadCatalog().offers.find(o => o.category_id === "balloons" && o.appearance === "red");
-  if (!base) throw new Error("missing balloon");
+  const base = loadCatalog().offers.find(o => o.brand === "Rice" && o.appearance === "plain");
+  if (!base) throw new Error("missing rice");
   const row = (sku_id: string, merchant_id: string, shelf: number, cardRule?: { tender: "card"; minMerchandise: number; off: number }) => ({
     ...base, sku_id, merchant_id, platform_id: merchant_id, shelf, human_price: shelf, agent_price: shelf, coupon: 0, shipping: 20,
     rating: 5, purchase_count: 10, reward: { gift: 0, rate: 0, terms: "none" }, cardRule,
@@ -52,8 +79,8 @@ test("a card discount can change the winning seller", () => {
   expect(rankOffers([hktv, { ...hktv, sku_id: "hktv-tie", merchant_id: "other-shop" }], goal, defaultMandate(), []).status).toBe("clarify");
 });
 test("the cheapest named card wins when the form lists it", () => {
-  const base = loadCatalog().offers.find(o => o.category_id === "balloons" && o.appearance === "red");
-  if (!base) throw new Error("missing balloon");
+  const base = loadCatalog().offers.find(o => o.brand === "Rice" && o.appearance === "plain");
+  if (!base) throw new Error("missing rice");
   const offer = { ...base, sku_id: "named-cards", merchant_id: "hktv-shop", shelf: 280, human_price: 280, agent_price: 280, coupon: 0, shipping: 20,
     rating: 5, purchase_count: 10, reward: { gift: 0, rate: 0, terms: "none" },
     cardRules: [
@@ -64,25 +91,27 @@ test("the cheapest named card wins when the form lists it", () => {
   expect(rankOffers([offer], goal, mandate, []).offers[0]).toMatchObject({ tender: "hsbc-visa", money: { cardOff: 40, cashTotal: 260 } });
   expect(rankOffers([offer], goal, { ...mandate, tenders: ["citi-mastercard", "wallet"] }, []).offers[0]).toMatchObject({ tender: "citi-mastercard", money: { cardOff: 10, cashTotal: 290 } });
 });
-test("a generic balloon request ranks the category with the saved comparison", () => {
-  const generic = { ...parseIntent("balloon").goals[0], qty: 1 };
-  const ranked = rankOffers(loadCatalog().offers, generic, defaultMandate(), []);
+test("a generic groceries request ranks the category with the saved comparison", () => {
+  const ranked = rankOffers(loadCatalog().offers, goal, defaultMandate(), []);
   expect(ranked.status).not.toBe("terminate");
   expect(ranked.offers.length).toBeGreaterThan(0);
-  expect(ranked.offers.every(row => row.offer.category_id === "balloons")).toBe(true);
+  expect(ranked.offers.every(row => row.offer.category_id === "groceries")).toBe(true);
+  expect(ranked.offers[0].offer.sku_id).toBe("party-shop-groceries-1");
 });
-test("a color with no catalogue rows ranks the rest of the category", () => {
-  const blue = { ...parseIntent("balloon").goals[0], qty: 1, appearance: "blue" };
-  const ranked = rankOffers(loadCatalog().offers, blue, defaultMandate(), []);
+test("a named food with no catalogue rows ranks the rest of the category", () => {
+  const organic = { ...parseIntent("organic rice").goals[0], qty: 1 };
+  const ranked = rankOffers(loadCatalog().offers, organic, defaultMandate(), []);
   expect(ranked.status).not.toBe("terminate");
-  expect(ranked.offers.every(row => row.offer.appearance === "red")).toBe(true);
-  expect(ranked.reason).toContain("blue");
+  expect(ranked.offers.some(row => row.offer.brand === "Rice")).toBe(true);
+  expect(ranked.reason).toContain("organic");
   expect(ranked.reason).toContain("saved comparison");
 });
-test("red balloons stay on red rows", () => {
-  const ranked = rankOffers(loadCatalog().offers, goal, defaultMandate(), []);
-  expect(ranked.offers.every(row => row.offer.appearance === "red")).toBe(true);
-  expect(ranked.reason).not.toContain("saved comparison");
+test("plain rice stays on the rice row and milk does not fall through", () => {
+  const rice = rankOffers(loadCatalog().offers, { ...parseIntent("plain rice").goals[0], qty: 1 }, defaultMandate(), []);
+  expect(rice.offers.every(row => row.offer.brand === "Rice" && row.offer.appearance === "plain")).toBe(true);
+  expect(rice.reason).not.toContain("saved comparison");
+  const milk = rankOffers(loadCatalog().offers, { ...parseIntent("milk").goals[0], qty: 1 }, defaultMandate(), []);
+  expect(milk.offers.map(row => row.offer.sku_id)).toEqual(["party-shop-milk-1"]);
 });
 test("an empty category names the mandate limits", () => {
   const empty = rankOffers([], goal, defaultMandate(), []);

@@ -5,7 +5,7 @@ import { parseIntent, intentFromDraft, statedQuantity, wantsAsMany, type Goal, t
 import { complete, proposeTurn } from "@/lib/complete";
 import { allows, type Mandate } from "@/lib/mandate";
 import { checkAllocations } from "@/lib/allocation";
-import { rankOffers, resolveWeights, DEFAULT_WEIGHTS, type RankedOffer, type Weights } from "@/lib/rank";
+import { rankOffers, resolveWeights, weightsFor, type RankedOffer, type Weights } from "@/lib/rank";
 import { createQuote, checkQuote, fitQuantity, quoteChanged, searchDeadline, clarifyDeadline, allowedTenders, type Quote } from "@/lib/quote";
 import { releaseCoupon, type CouponState } from "@/lib/negotiate";
 import { historySkus, recentSkus, spent7d, spentShare, spentRequest, receipt } from "@/lib/ledger";
@@ -144,7 +144,7 @@ export async function runAttempt(input: AttemptInput, ctx: AttemptContext): Prom
   log(a.trace, "allocation", "shared_request", allocation.reason, { budget: input.budget, reserved: allocation.reserved }, started);
   if (allocation.status === "terminate") return stop(a, allocation.reason, started);
   if (allocation.status === "clarify") return clarify(a, "allocation", allocation.reason, started);
-  const explicit = input.weights ?? (input.mandate.paymentObjective === "lowest_cash" ? { relevance: 0.2, cash: 0.6, rating: 0.1, purchases: 0.05, history: 0.05 } : DEFAULT_WEIGHTS);
+  const explicit = input.weights ?? weightsFor(input.mandate.paymentObjective);
   const preferences = resolveWeights(input.preferencesAccepted ? "" : input.text, explicit);
   if (preferences.status === "terminate") return stop(a, preferences.reason, started);
   if (preferences.status === "clarify") return clarify(a, "weights", preferences.reason, started);

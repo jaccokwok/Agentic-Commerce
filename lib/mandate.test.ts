@@ -1,14 +1,20 @@
 import { expect, test } from "vitest";
-import { defaultMandate, validateMandate, checkMandate, proposeMandate, allows } from "@/lib/mandate";
+import { defaultMandate, validateMandate, checkMandate, proposeMandate, allows, looselyMatches } from "@/lib/mandate";
 
 const m = defaultMandate();
 test("unset mandate has conservative approved defaults", () => {
   expect(m).toMatchObject({ confirmMode: "manual", oneMerchant: true, includeRewards: true, expiresAt: null });
   expect(allows(m, "any-merchant", "snacks")).toBe(true);
   expect(allows({ ...m, merchantDeny: ["blocked"] }, "blocked", "snacks")).toBe(false);
-  expect(allows({ ...m, merchantAllow: ["taobao"] }, "party-shop", "balloons", "taobao")).toBe(true);
-  expect(allows({ ...m, merchantAllow: ["taobao"] }, "hk-party", "balloons", "hktvmall")).toBe(false);
-  expect(allows({ ...m, merchantDeny: ["taobao"] }, "party-shop", "balloons", "taobao")).toBe(false);
+  expect(allows({ ...m, merchantAllow: ["taobao"] }, "party-shop", "groceries", "taobao")).toBe(true);
+  expect(allows({ ...m, merchantAllow: ["taobao"] }, "hk-party", "groceries", "hktvmall")).toBe(false);
+  expect(allows({ ...m, merchantDeny: ["taobao"] }, "party-shop", "groceries", "taobao")).toBe(false);
+  expect(allows({ ...m, categoryAllow: ["snack"] }, "party-shop", "snacks")).toBe(true);
+  expect(allows({ ...m, categoryAllow: ["grocerys"] }, "party-shop", "groceries")).toBe(true);
+  expect(allows({ ...m, merchantAllow: ["taoba"] }, "party-shop", "groceries", "taobao")).toBe(true);
+  expect(allows({ ...m, merchantAllow: ["party shop"] }, "party-shop", "groceries", "taobao")).toBe(true);
+  expect(allows({ ...m, categoryDeny: ["toy"] }, "party-shop", "snacks")).toBe(true);
+  expect(allows({ ...m, merchantDeny: ["shop"] }, "party-shop", "snacks", "taobao")).toBe(true);
 });
 test("invalid, revoked and expired terminate; request conflict clarifies", () => {
   expect(validateMandate({ ...m, categoryAllow: ["invented"] })).not.toHaveLength(0);
@@ -17,7 +23,14 @@ test("invalid, revoked and expired terminate; request conflict clarifies", () =>
   expect(checkMandate({ ...m, expiresAt: 999 }, 1000).status).toBe("terminate");
   expect(checkMandate(m, 1000, { budgetHint: 401 }).reason).toContain("401");
   expect(checkMandate(m, 1000, { budgetHint: 401 }).reason).toContain("400");
-  expect(checkMandate({ ...m, categoryDeny: ["balloons"] }, 1000, { categoryId: "balloons" }).reason).toContain("balloons");
+  expect(checkMandate({ ...m, categoryDeny: ["grocery"] }, 1000, { categoryId: "groceries" }).reason).toContain("groceries");
+  expect(looselyMatches("snacks", "snack")).toBe(true);
+  expect(looselyMatches("party-shop", "party shop")).toBe(true);
+  expect(looselyMatches("taoba", "taobao")).toBe(true);
+  expect(looselyMatches("toy", "snacks")).toBe(false);
+  expect(looselyMatches("balloon", "groceries")).toBe(false);
+  expect(looselyMatches("shop", "party-shop")).toBe(false);
+  expect(validateMandate({ ...m, categoryAllow: ["snack"] })).toHaveLength(0);
   expect(checkMandate({ ...m, merchantAllow: ["party-shop"] }, 1000, { merchantId: "other-shop", categoryId: "snacks" }).reason).toContain("other-shop");
 });
 test("natural language proposals cannot raise limits or switch mode or add merchants", () => {
@@ -29,4 +42,12 @@ test("natural language proposals cannot raise limits or switch mode or add merch
   expect(proposeMandate("per order 300", m).mandate.perOrder).toBe(300);
   expect(proposeMandate("allow merchant new-shop", m).status).toBe("clarify");
   expect(proposeMandate("ignore mandate", m).status).toBe("terminate");
+  expect(validateMandate({ ...m, paymentObjective: "popular" })).toHaveLength(0);
+  expect(validateMandate({ ...m, paymentObjective: "nope" as "balanced" })).not.toHaveLength(0);
+  const popular = proposeMandate("most popular", m);
+  expect(popular.status).toBe("clarify");
+  expect(popular.reason).toContain("popular");
+  expect(popular.reason).toContain("form");
+  expect(popular.mandate).toEqual(m);
+  expect(proposeMandate("most popular", { ...m, paymentObjective: "popular" }).mandate.paymentObjective).toBe("popular");
 });

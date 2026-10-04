@@ -41,7 +41,7 @@ Coverage floor in `CONSTRAINTS.md` is not lowered: statements ≥ 81.33%, branch
 | `lib/pay.ts`, `lib/ledger.ts` | Payer. |
 | `lib/trace.ts` | `{ role, step, ruleId, reason, numbers, at }` on one id. |
 | `fixtures/replays.json` | The 13 harness scenarios. |
-| `fixtures/catalog.json` | 24 rows. Snacks and balloons only. |
+| `fixtures/catalog.json` | 32 rows. Snacks and groceries only. Plain rice is shelf 50. |
 
 Trace roles already assigned: `parse` and `rank` and `allocation` are shopper; `mandate`, `offer_limit`, and `cash_gate` are mandate; listing drops are auditor; `negotiate` is merchant; `pay` is payer.
 
@@ -126,12 +126,12 @@ A `paid` or `terminate` attempt ignores later events.
 
 **How to act.**
 
-1. “Party items” becomes the editable list snacks and balloons. Quantities stay `null`. Do not search.
+1. “Food” becomes the editable list snacks and groceries. Quantities stay `null`. Do not search. A balloon or a toy does not become a goal.
 2. A named product becomes one goal. Brand and appearance are filters on the fixture fields. They are data.
 3. More than one goal splits into sub-requests that share one mandate and one rolling budget. Each goal starts with a blank share. The user types the shares. Unassigned money stays reserved. A goal cannot spend another goal’s share.
 4. Two goals require the user to accept partial completion before the second search. One goal may finish and the other may not. That acceptance is stored. It is not inferred.
 5. A budget hint is a number on the request. If it is above `per_order`, the mandate role clarifies. The shopper does not silently shrink the hint to fit.
-6. Weights shown by default: relevance 0.35, cash 0.25, rating 0.15, purchases 0.10, history 0.15. The phrase cheapest, lowest cash, 最便宜, or 最低现金 infers relevance 0.2, cash 0.6, rating 0.1, purchases 0.05, history 0.05. An explicit vector replaces the inferred one. If the text inferred the cheapest vector and the explicit vector differs on any key, clarify `weights` and keep the explicit vector. A lone cash override against the default vector is ready even when the numbers do not sum to 1. A non-finite or negative weight terminates.
+6. The form’s payment objective picks the shares. Balanced is relevance 0.35, cash 0.25, rating 0.15, purchases 0.10, history 0.15. Lowest cash, relevance, rating, popular, and familiar each put 0.60 on that part, keep relevance at 0.20 when it is not the lead, and set the other three to 0.10, 0.05, and 0.05. A sentence that names a different mix, or names two mixes, clarifies `weights` and keeps the saved vector. A sentence cannot change `paymentObjective`. A lone cash override against the saved vector is ready even when the numbers do not sum to 1. A non-finite or negative weight terminates.
 7. Rank only rows the auditor kept and the mandate allowed. Score uses cash for the cash term. When rewards are on, a separate reward bonus makes the total match scoring on effective cost. A sku on any earlier booking gets the history weight. A purchase in the last 72 hours is a separate clarify before pay. Sort by score, then `sku_id`. Keep the top three of the first row’s `merchant_id`.
 8. If the global top two scores differ by less than `1e-10`, including across merchants, clarify `tie`. Show the winning merchant’s three offers and wait.
 9. If the chosen sku was paid in the last 72 hours, clarify `repeat`. `accept_repeat` returns to the quote. The user still confirms. Decline releases the coupon.
@@ -171,7 +171,7 @@ A `paid` or `terminate` attempt ignores later events.
 
 **Must not.** Search. Pay. Drop a listing because the prose is poisoned. That is the auditor. Treat a reward as cash. Let a confirm override `per_item`, `per_order`, the share, or the remaining 168 hours.
 
-**Defaults when the form is unset.** Manual confirm. One merchant per order. Rewards included. No expiry. Tenders `["card"]`. Per item 250. Per order 400. Rolling 7 days 1000. Max search 15 seconds. Payment objective `balanced`. Empty merchant allow list means every merchant except the deny list. Empty category allow list means every category except the deny list. Categories are `snacks` and `balloons` only.
+**Defaults when the form is unset.** Manual confirm. One merchant per order. Rewards included. No expiry. Tenders `["card"]`. Per item 250. Per order 400. Rolling 7 days 1000. Max search 15 seconds. Payment objective `balanced`. Empty merchant allow list means every merchant except the deny list. Empty category allow list means every category except the deny list. Categories are `snacks` and `groceries` only. An allow or deny entry matches loosely: snacks matches snack, groceries matches grocery, and a merchant or platform id matches one extra letter or a missing space. Toy and balloon do not match a food category.
 
 **How to act.**
 
@@ -367,7 +367,7 @@ A `paid` or `terminate` attempt ignores later events.
 
 ## Walkthroughs
 
-**Party items, manual.** User confirms the default mandate. Shopper turns “party items” into snacks and balloons and waits for quantities. User sets one goal’s qty and its share. Auditor drops poisoned, surcharged, and ship-less rows. Mandate drops rows over the cash gate. Shopper shows three offers from one merchant. User selects. Merchant accepts. User confirms. Payer books cash. The trace contains shopper, mandate, merchant, auditor, and payer.
+**Food, manual.** User confirms the default mandate. Shopper turns “food” into snacks and groceries and waits for quantities. User sets one goal’s qty and its share. Auditor drops poisoned, surcharged, and ship-less rows. Mandate drops rows over the cash gate. A groceries search shows three offers from one merchant. Plain rice books at HKD 60. User selects. Merchant accepts. User confirms. Payer books cash. The trace contains shopper, mandate, merchant, auditor, and payer.
 
 **Two goals.** Shares start blank. Shopper clarifies until both shares are positive and their sum is at or under the request budget. The remainder stays reserved. The user accepts that one goal may finish without the other. Each goal is its own attempt against its own share and the same 168-hour sum. The second cannot spend the first’s share.
 

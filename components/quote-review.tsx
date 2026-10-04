@@ -1,6 +1,7 @@
 "use client";
 
 import FlowDialog from "@/components/flow-dialogs";
+import { maskId } from "@/lib/mask-id";
 import type { Attempt, AttemptEvent } from "@/lib/attempt";
 import type { Quote } from "@/lib/quote";
 
@@ -38,7 +39,7 @@ export function WhyChosen({ attempt, sku }: { attempt: Attempt; sku: string }) {
     <div className="mt-2 text-sm">
       {explanation && <p>{explanation}</p>}
       <p className="shop-muted">
-        {String(row.numbers.sku)} · cash {String(row.numbers.cash)} · {String(row.numbers.tender)} · score {String(row.numbers.score)}
+        {maskId(String(row.numbers.sku))} · cash {String(row.numbers.cash)} · {String(row.numbers.tender)} · score {String(row.numbers.score)}
       </p>
       <p className="shop-muted">{String(row.numbers.parts)}</p>
     </div>

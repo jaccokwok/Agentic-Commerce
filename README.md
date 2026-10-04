@@ -2,7 +2,7 @@
 
 Agentic commerce MVP built with **Next.js** (App Router), **Tailwind CSS**, and embedded SQLite, with a Docker deployment configuration.
 
-Scout implements the buying loop in `prompt.md`: confirmed mandate → editable shopping goals and budget shares → one merchant's top three offers → catalogue negotiation → final quote → mock card payment → persistent ledger and decision trace. Catalogues, FX and payments are mock data. No hosted LLM, live scrape, card collection or real Stripe charge is used.
+Scout implements the buying loop in `prompt.md`: confirmed mandate → editable shopping goals and budget shares → one merchant's top three offers → catalogue negotiation → final quote → mock card payment → persistent ledger and decision trace. The mock catalogue is food only: snacks and groceries. Plain rice books at HKD 60. Catalogues, FX and payments are mock data. No hosted LLM, live scrape, card collection or real Stripe charge is used.
 
 ## Tech stack
 
@@ -122,9 +122,9 @@ The replay test prints `Replay scenarios: 12; overspend count: 0`. Coverage thre
 ## Clickable demo
 
 1. Register, return home, and confirm the default manual mandate (250 / 400 / 1000 HKD, rewards on).
-2. Create the list for “party items for 8, red balloons, budget 350”. Both quantities and shares start blank; set quantities to 1, shares to 175 each, and accept possible partial completion.
-3. Search a goal, compare its three offers, select one, then review and confirm its quote. `/account` shows the original cash spend and stored mock refs.
-4. For a tie, use the balloon request and merchant “Demo · equal-score tie”. Selection pauses for a choice.
+2. Search “food for 8, budget 350”. Both quantities and shares start blank; set quantities to 1, shares to 175 each, and accept possible partial completion.
+3. Search a goal. Plain rice quotes at HKD 60. Select one, then review and confirm its quote. `/account` shows the original cash spend and stored mock refs.
+4. For a tie, use a noodles request and merchant “Demo · equal-score tie”. Selection pauses for a choice.
 5. For price changes, use “snacks budget 400”, quantity 1, share 400, merchant “Demo · price change (snacks)”. The initial quote is 340. Change to 360, then decline: coupon returns to unused. Select again, change to 410, and try to confirm: the 400 limit rejects payment.
 
 Original successful cash payments count for the preceding continuous 168 hours. Unassigned request money stays reserved, and a goal cannot borrow another goal's share. Reconfirming or revoking a mandate invalidates outstanding attempts. Docker configuration was preserved; the image was not built during local MVP verification.

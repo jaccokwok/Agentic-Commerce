@@ -31,7 +31,7 @@ payment objective
 
 B. User Payment Request
 
-**[changed]** Their requests are natural language and may not name a product. “Party items” becomes an editable list, such as snacks and balloons. Quantities stay blank until the user sets them. Do not search, and do not invent a guest count.
+**[changed]** Their requests are natural language and may not name a product. “Food” becomes an editable list of snacks and groceries. Quantities stay blank until the user sets them. Do not search, and do not invent a guest count. A toy or a balloon is outside the catalogue.
 
 **[changed]** The request may also carry a budget hint, product filters, brand, and appearance. Parse that into typed JSON: goals, qty, brand, appearance, budget hint. Do not parse into SQL, and do not execute a model-written string. The request cannot raise a mandate limit, add a merchant, or switch confirm mode. More than one shopping goal is split into sub-requests that share one mandate and one rolling budget. A conflict with a valid mandate clarifies. An invalid, revoked, or expired mandate terminates.
 
@@ -104,8 +104,8 @@ Mandate conflicts appear under both clarification and termination
 If a request conflicts with a valid mandate, pause for clarification and stop purchasing actions. Resume only after the user explicitly updates and confirms the mandate or request. Refusal or timeout terminates the request. An invalid, revoked, or expired mandate causes immediate termination.
 Is a marketplace the same as a merchant?
 Record platform_id and merchant_id separately. One marketplace may contain multiple merchants. Enforce “one merchant per order” using the merchant ID.
-What should a vague request such as “party items” return?
-**[changed]** Convert it into an editable shopping list, such as snacks and balloons. Quantities stay blank until the user sets them. Do not search, and do not invent a guest count.
+What should a vague request such as “food” return?
+**[changed]** Convert it into an editable shopping list of snacks and groceries. Quantities stay blank until the user sets them. Do not search, and do not invent a guest count. A toy or a balloon is outside the catalogue.
 What does “Top 3” mean for multiple products?
 **[changed]** This release: one shopping goal, one merchant, three offers. Cross-merchant baskets are later.
 Does each subtask receive the full budget?

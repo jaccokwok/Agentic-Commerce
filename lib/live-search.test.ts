@@ -11,8 +11,8 @@ const BEIJING = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completi
 async function searchOnce() {
   const database = new DatabaseSync(":memory:");
   initializeSchema(database);
-  const goal = { ...parseIntent("red balloons").goals[0], qty: 1 };
-  const input = { userId: 1, requestId: "live-red-balloons", text: "red balloons", goals: [goal], goalId: "balloons", shares: { balloons: 350 }, budget: 350, partialAccepted: false, mandate: defaultMandate() };
+  const goal = { ...parseIntent("plain rice").goals[0], qty: 1 };
+  const input = { userId: 1, requestId: "live-plain-rice", text: "plain rice", goals: [goal], goalId: "groceries", shares: { groceries: 350 }, budget: 350, partialAccepted: false, mandate: defaultMandate() };
   const ctx = { database, now: () => 1000, vaultId: "vault_demo", addressId: "address_demo" };
   let http = 0;
   const original = globalThis.fetch;
@@ -30,7 +30,7 @@ async function searchOnce() {
   }
 }
 
-test("npm test does not call Qwen; SCOUT_LIVE=1 runs one red balloons search", async () => {
+test("npm test does not call Qwen; SCOUT_LIVE=1 runs one plain rice search", async () => {
   if (process.env.SCOUT_LIVE !== "1") {
     let hits = 0;
     const original = globalThis.fetch;

@@ -4,6 +4,7 @@ import { expect, test } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import TraceLog from "@/components/trace-log";
+import { maskId } from "@/lib/mask-id";
 import { formatRow, log, newTrace, roleFor, type Trace } from "@/lib/trace";
 
 test("each step belongs to one role, and a bad listing stays with the auditor", () => {
@@ -35,8 +36,10 @@ test("a ranking line shows the sku, the cash, the tender, and the score parts", 
 test("the decision log shows the trace id and each fact on its own line", () => {
   const trace: Trace = { id: "trace-1", rows: [{ role: "shopper", step: "rank", ruleId: "scored", reason: "hktv-card", at: 1, numbers: { sku: "hktv-card", cash: 260, tender: "hsbc-visa", score: 0.6 } }] };
   const html = renderToStaticMarkup(createElement(TraceLog, { trace }));
-  expect(html).toContain("trace-1");
-  expect(html).toContain("hktv-card");
+  expect(html).toContain(maskId("trace-1"));
+  expect(html).toContain(maskId("hktv-card"));
+  expect(html).not.toContain("trace-1");
+  expect(html).not.toContain("hktv-card");
   expect(html).toContain("cash");
   expect(html).toContain("260");
   expect(html).toContain("hsbc-visa");

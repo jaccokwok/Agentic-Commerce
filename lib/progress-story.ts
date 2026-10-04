@@ -1,3 +1,4 @@
+import { maskId } from "@/lib/mask-id";
 import type { TraceRow } from "@/lib/trace";
 
 const ROLE = { shopper: "Shopper", mandate: "Mandate", merchant: "Merchant", auditor: "Auditor", payer: "Payer" } as const;
@@ -21,7 +22,7 @@ function lineFor(row: TraceRow, seen: { scored: boolean; limited: boolean; dropp
   if (rule === "weights") return "Shopper decides how to compare the offers.";
   if (rule === "scored") return seen.scored ? null : "Shopper scores the offers.";
   if (rule === "max_qty") return row.reason;
-  if (rule === "one_merchant_top3") return row.reason.includes("saved comparison") || !row.numbers.winner ? row.reason : `Shopper leads with ${row.numbers.winner}.`;
+  if (rule === "one_merchant_top3") return row.reason.includes("saved comparison") || !row.numbers.winner ? row.reason : `Shopper leads with ${maskId(String(row.numbers.winner))}.`;
   if (row.from === "merchant") {
     if (rule === "accepted" || row.numbers.status === "accepted") return "Merchant accepts the catalogue price.";
     if (rule === "counter" || row.numbers.status === "counter") return "Merchant sends one counter-offer.";

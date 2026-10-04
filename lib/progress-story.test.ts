@@ -1,4 +1,5 @@
 import { expect, test } from "vitest";
+import { maskId } from "@/lib/mask-id";
 import { progressStory } from "@/lib/progress-story";
 import type { TraceRow } from "@/lib/trace";
 
@@ -13,7 +14,7 @@ test("a quote attempt becomes a short role story", () => {
     row({ step: "mandate", ruleId: "validate_form", from: "mandate", to: "shopper", numbers: { status: "ready" } }),
     row({ step: "rank", ruleId: "scored", numbers: { sku: "a" } }),
     row({ step: "rank", ruleId: "scored", numbers: { sku: "b" } }),
-    row({ step: "rank", ruleId: "one_merchant_top3", numbers: { winner: "party-shop-balloons-1" } }),
+    row({ step: "rank", ruleId: "one_merchant_top3", numbers: { winner: "party-shop-groceries-1" } }),
     row({ step: "negotiate", ruleId: "accepted", from: "merchant", to: "shopper", numbers: { status: "accepted" } }),
     row({ step: "quote", ruleId: "cash_gate", from: "mandate", to: "shopper", numbers: { status: "ready", cash: 60 } }),
   ], "quote");
@@ -21,7 +22,7 @@ test("a quote attempt becomes a short role story", () => {
     "Shopper turns the sentence into catalogue items.",
     "Mandate accepts the saved limits.",
     "Shopper scores the offers.",
-    "Shopper leads with party-shop-balloons-1.",
+    `Shopper leads with ${maskId("party-shop-groceries-1")}.`,
     "Merchant accepts the catalogue price.",
     "Mandate allows the cash of 60.",
     "Shopper is waiting for you to confirm the quote.",
@@ -36,9 +37,9 @@ test("as many as possible names the quantity that fits", () => {
 });
 test("a relaxed ranking names the missing color in the story", () => {
   const lines = progressStory([
-    row({ step: "rank", ruleId: "one_merchant_top3", reason: "No blue balloons are in the catalogue. Ranked all balloons with the saved comparison.", numbers: { winner: "party-shop-balloons-1" } }),
+    row({ step: "rank", ruleId: "one_merchant_top3", reason: "No organic Rice groceries are in the catalogue. Ranked all groceries with the saved comparison.", numbers: { winner: "party-shop-groceries-1" } }),
   ]);
-  expect(lines[0]).toContain("blue");
+  expect(lines[0]).toContain("organic");
   expect(lines[0]).toContain("saved comparison");
 });
 
