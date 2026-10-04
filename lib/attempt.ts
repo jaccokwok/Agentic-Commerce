@@ -41,6 +41,24 @@ function remaining(a: Attempt, ctx: AttemptContext) {
   return { rolling: a.input.mandate.rolling7d - spent7d(a.input.userId, ctx.now(), ctx.database),
     share: (a.input.shares[a.input.goalId] ?? 0) - spentShare(a.input.userId, a.input.requestId, a.input.goalId, ctx.database) };
 }
+function cashGap(goal: Goal, rejected: { sku: string; reason: string }[], candidates: Offer[], mandate: Mandate, share: number, rolling: number, now: number): string | null {
+  const inCategory = candidates.filter(offer => offer.category_id === goal.categoryId);
+  const told = [...new Set(rejected.filter(row => inCategory.some(offer => offer.sku_id === row.sku)).map(row => row.reason))];
+  if (!told.length || told.some(reason => !reason.includes("spending limit"))) return null;
+  const open = inCategory.filter(offer => allows(mandate, offer.merchant_id, offer.category_id, offer.platform_id));
+  const strict = open.filter(offer => (!goal.brand || offer.brand.toLowerCase() === goal.brand.toLowerCase()) && (!goal.appearance || offer.appearance === goal.appearance));
+  const pool = strict.length ? strict : open;
+  if (!pool.length) return null;
+  let cheapest = pool[0];
+  let cheapestCash = createQuote(cheapest, goal.qty ?? 1, mandate, now).cashTotal;
+  for (const offer of pool) {
+    const cash = createQuote(offer, goal.qty ?? 1, mandate, now).cashTotal;
+    if (cash < cheapestCash) { cheapest = offer; cheapestCash = cash; }
+  }
+  const blockedByWeek = cheapestCash > rolling && rolling <= share;
+  const lead = blockedByWeek ? `HKD ${rolling.toFixed(2)} is left of the 168-hour budget` : `The ${goal.label.toLowerCase()} share for this request is HKD ${Math.min(share, mandate.perOrder).toFixed(2)}`;
+  return `${lead}. ${cheapest.name} is HKD ${cheapestCash.toFixed(2)}, so this attempt stops.`;
+}
 function poolReason(label: string, rejected: { sku: string; reason: string }[], candidates: Offer[], categoryId: string, fallback: string): string {
   const told = [...new Set(rejected.filter(row => candidates.find(offer => offer.sku_id === row.sku)?.category_id === categoryId).map(row => row.reason))];
   if (!told.length || told.some(reason => !reason.includes("not allowed by the mandate"))) return fallback;
@@ -169,7 +187,7 @@ export async function runAttempt(input: AttemptInput, ctx: AttemptContext): Prom
   const w = preferences.weights;
   log(a.trace, "rank", "weights", "Shares used for this ranking", { weights: `relevance ${w.relevance}, cash ${w.cash}, rating ${w.rating}, purchases ${w.purchases}, history ${w.history}` }, ctx.now());
   for (const row of ranked.compared) log(a.trace, "rank", "scored", row.sku, { sku: row.sku, cash: row.cash, tender: row.tender, score: row.score, parts: row.parts }, ctx.now());
-  const rankedReason = ranked.status === "terminate" ? poolReason(goal.label, limited.rejected, candidates, goal.categoryId, ranked.reason) : ranked.reason;
+  const rankedReason = ranked.status === "terminate" ? cashGap(goal, limited.rejected, candidates, input.mandate, limits.share, limits.rolling, ctx.now()) ?? poolReason(goal.label, limited.rejected, candidates, goal.categoryId, ranked.reason) : ranked.reason;
   log(a.trace, "rank", "one_merchant_top3", rankedReason, { offers: a.offers.length, topScore: a.offers[0]?.score ?? null, winner: a.offers[0]?.offer.sku_id ?? null }, ctx.now());
   if (ranked.status === "terminate") return stop(a, rankedReason, ctx.now());
   if (ranked.status === "clarify") return clarify(a, "tie", ranked.reason, ctx.now());

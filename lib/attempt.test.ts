@@ -42,6 +42,25 @@ test("a stated count wins over as many as possible", async () => {
   const attempt = await runAttempt({ ...input, text: "as many as possible, 3 rice", goals: [{ ...parseIntent("rice").goals[0], qty: 3 }] }, ctx);
   expect(attempt.quote?.items[0].qty).toBe(3);
 });
+test("thailand rice most popular buys plain rice when the budget can pay", async () => {
+  const { ctx, input } = setup();
+  const goals = [{ ...parseIntent("thailand rice most popular").goals[0], qty: 1 }];
+  const attempt = await runAttempt({ ...input, text: "thailand rice most popular", goals, shares: { groceries: 400 }, budget: 400, mandate: { ...input.mandate, paymentObjective: "popular" } }, ctx);
+  expect(attempt.status).toBe("quote");
+  expect(attempt.quote?.items[0].sku_id).toBe("party-shop-groceries-1");
+  expect(attempt.quote?.cashTotal).toBe(60);
+});
+test("a budget smaller than rice names the price instead of an empty catalogue", async () => {
+  const { ctx, input } = setup();
+  const goals = [{ ...parseIntent("thailand rice most popular").goals[0], qty: 1 }];
+  const attempt = await runAttempt({ ...input, text: "thailand rice most popular", goals, shares: { groceries: 5 }, budget: 5, preferencesAccepted: true, mandate: { ...input.mandate, rolling7d: 5 } }, ctx);
+  expect(attempt.status).toBe("terminate");
+  expect(attempt.reason).toContain("168-hour");
+  expect(attempt.reason).toContain("5.00");
+  expect(attempt.reason).toContain("60.00");
+  expect(attempt.reason).toContain("Plain rice");
+  expect(attempt.reason).not.toContain("left no");
+});
 test("an allow list that matches no shop names that list", async () => {
   const { ctx, input } = setup();
   const attempt = await runAttempt({ ...input, text: "rice", goals: [{ ...parseIntent("rice").goals[0], qty: 1 }], mandate: { ...input.mandate, merchantAllow: ["nowhere"] } }, ctx);

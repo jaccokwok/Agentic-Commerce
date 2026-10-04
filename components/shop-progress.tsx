@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { progressStory } from "@/lib/progress-story";
 import type { TraceRow } from "@/lib/trace";
 
+const LINE_MS = 1000;
+
 export function devStage(status: string | null, rows: Pick<TraceRow, "step" | "ruleId">[]): string {
   const last = rows.at(-1);
   if (last) return `stage: ${last.step} · ${last.ruleId}`;
@@ -24,7 +26,7 @@ export default function ShopProgress({ rows, status, busy }: { rows: TraceRow[];
 
   useEffect(() => {
     if (shown >= lines.length) return;
-    const timer = window.setTimeout(() => setShown((count) => count + 1), 220);
+    const timer = window.setTimeout(() => setShown((count) => count + 1), LINE_MS);
     return () => window.clearTimeout(timer);
   }, [shown, lines.length, signature]);
 
@@ -36,7 +38,7 @@ export default function ShopProgress({ rows, status, busy }: { rows: TraceRow[];
       <ol aria-live="polite">
         {visible.length === 0 && !working && <li className="text-neutral-400">Waiting for a request.</li>}
         {visible.map((line, index) => (
-          <li key={`${line}-${index}`} className={index === visible.length - 1 && !working ? "text-neutral-800" : "text-neutral-500"}>
+          <li key={`${line}-${index}`} className={`shop-progress-line ${index === visible.length - 1 && !working ? "text-neutral-800" : "text-neutral-500"}`}>
             {line}
           </li>
         ))}

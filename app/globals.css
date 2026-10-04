@@ -44,4 +44,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .flow-dialog { margin: auto; width: min(36rem, calc(100% - 2rem)); max-height: calc(100dvh - 2rem); overflow: auto; padding: 1.5rem; border-radius: .75rem; border: 1px solid var(--border); color: var(--foreground); background: var(--surface); }
 .flow-dialog::backdrop { background: rgb(0 0 0 / .45); }
 summary { cursor: pointer; }
+.shop-progress-line { animation: shop-progress-in 0.7s ease-out; }
+@keyframes shop-progress-in {
+  from { opacity: 0; transform: translateY(0.35rem); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .shop-progress-line { animation: none; }
+}
 @media (max-width: 640px) { .shop-fields { grid-template-columns: minmax(0, 1fr); } .shop-panel { padding: 1rem; } }
